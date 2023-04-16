@@ -1,0 +1,7 @@
+ {
+    "tenantUrl":"",
+    "clientSecret":"",
+    "clientId":"",
+    "appName": "Passkey Starter Kit",
+    "relyingPartyHostname": ""
+}
