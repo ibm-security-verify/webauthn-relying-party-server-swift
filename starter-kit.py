@@ -216,7 +216,7 @@ def create_relying_party():
             "includedMetadata": []
         },
         "enabled": True,
-        "rpId": relying_party_hostname
+        "rpId": relying_party_hostname[0:50]
     }
 
     # Make the API request to create the app definition
