@@ -3,6 +3,7 @@
 //
 
 import Vapor
+import NIOSSL
 
 /// Main entry point into the Vapor application.
 @main
@@ -11,25 +12,44 @@ struct RelyingPartyServer {
         var env = try Environment.detect()
         try LoggingSystem.bootstrap(from: &env)
 
-        let webapp = Application(env)
+        let webApp = Application(env)
         defer {
-            webapp.shutdown()
+            webApp.shutdown()
         }
         
         // MARK: Configure Sessions
-        webapp.sessions.use(.memory)
-        webapp.middleware.use(SessionsMiddleware(session: MemorySessions(storage: .init())))
+        webApp.sessions.use(.memory)
+        webApp.middleware.use(SessionsMiddleware(session: MemorySessions(storage: .init())))
         
         // MARK: Configure Cache
-        webapp.caches.use(.memory)
+        webApp.caches.use(.memory)
         
         // MARK: Configure Routes
-        try webapp.register(collection: WellKnownRoute())
-        try webapp.register(collection: DefaultRoute(webapp))
+        try webApp.register(collection: WellKnownRoute())
+        try webApp.register(collection: DefaultRoute(webApp))
         
         // MARK: Configure HTTP Client
-        webapp.http.client.configuration.timeout = HTTPClient.Configuration.Timeout(connect: .seconds(30))
+        webApp.http.client.configuration.timeout = HTTPClient.Configuration.Timeout(connect: .seconds(30))
         
-        try webapp.run()
+        // Configure the proxy if settings provided.
+        if let proxy = Environment.get("PROXY_HOST"), let proxyHost = URL(string: proxy), let port = Environment.get("PROXY_PORT"), let proxyPort = Int(port) {
+            webApp.logger.notice("Server proxy configured on \(proxyHost.absoluteString):\(proxyPort)")
+            webApp.http.client.configuration.proxy = .server(host: proxyHost.absoluteString, port: proxyPort)
+        }
+        
+        // Add root certificate authority if provided.
+        if let value = Environment.get("ROOT_CA"), let data = Data(base64Encoded: value), let certificate = String(data: data, encoding: .utf8) {
+            let bytes = [UInt8](certificate.utf8)
+            
+            var tlsConfiguration = TLSConfiguration.makeClientConfiguration()
+            tlsConfiguration.additionalTrustRoots.append(.certificates([
+                try NIOSSLCertificate(bytes: bytes, format: NIOSSLSerializationFormats.pem)
+            ]))
+        
+            webApp.logger.notice("Adding root certificate authority for client requests")
+            webApp.http.client.configuration.tlsConfiguration = tlsConfiguration
+        }
+            
+        try webApp.run()
     }
 }

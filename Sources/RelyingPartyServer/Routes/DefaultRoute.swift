@@ -48,12 +48,6 @@ struct DefaultRoute: RouteCollection {
             fatalError("User authenticaton related environment variables not set or invalid.")
         }
         
-        // Configure the proxy if settings provided.
-        if let proxy = Environment.get("PROXY_HOST"), let proxyHost = URL(string: proxy), let port = Environment.get("PROXY_PORT"), let proxyPort = Int(port) {
-            webApp.logger.info("Server proxy configured on \(proxyHost.absoluteString):\(proxyPort)")
-            webApp.http.client.configuration.proxy = .server(host: proxyHost.absoluteString, port: proxyPort)
-        }
-        
         self.webApp = webApp
         
        // Create instances of services for Token (authorization of users and api clients), users and FIDO WebAuthn.
@@ -70,7 +64,7 @@ struct DefaultRoute: RouteCollection {
             self.apiTokenService = ISVATokenService(webApp, baseURL: baseURL, clientId: apiClientId, clientSecret: apiClientSecret)
         }
         
-        self.webApp.logger.info("Configured for \(platform.rawValue)")
+        self.webApp.logger.notice("Configured for \(platform.rawValue.uppercased())")
     }
     
     func boot(routes: RoutesBuilder) throws {

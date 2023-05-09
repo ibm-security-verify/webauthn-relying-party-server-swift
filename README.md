@@ -141,7 +141,33 @@ BASE_URL=https://example.verify.ibm.com
 ```
 PROXY_HOST=proxy.example.verify.ibm.com
 PROXY_PORT=8080
+```
+
+#### `ROOT_CA`
+
+(OPTIONAL) Add an additional certificate to the trust store for TLS request validation. For example:
+```
+ROOT_CA=t4Ck1jbktkQT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0=
 ``` 
+
+> NOTE: The `ROOT_CA` value must be base64 encoded from Privacy Enhanced Mail (PEM) certificate text.
+
+
+#### `LOG_LEVEL`
+
+(OPTIONAL) Output log messages for diagnostic purposes. Below are the acceptable values and descriptions.
+| Name | Description |
+|---|---|
+| TRACE | Appropriate for messages that contain information normally of use only when tracing the execution of a program. |
+| DEBUG | Appropriate for messages that contain information normally of use only when debugging a program. |
+| INFO | Appropriate for informational messages. |
+| NOTICE | AAppropriate for conditions that are not error conditions, but that may require special handling. |
+| WARNING | Appropriate for messages that are not error conditions, but more severe than notice. |
+| ERROR | Appropriate for error conditions. |
+| CRITICAL | Appropriate for critical error conditions that usually require immediate attention. |
+
+> NOTE: Default is the `INFO` logging level. When run with the production environment, `NOTICE` is used to improve performance.
+
 
 ### Endpoints
 
