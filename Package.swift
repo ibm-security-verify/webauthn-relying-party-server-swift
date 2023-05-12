@@ -9,7 +9,7 @@ import PackageDescription
 let package = Package(
     name: "Relying Party Server",
     platforms: [
-        .macOS("12.0")
+        .macOS("13.0")
     ],
     products: [
         .executable(

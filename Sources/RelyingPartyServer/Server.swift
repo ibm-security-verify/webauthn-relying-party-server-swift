@@ -32,9 +32,21 @@ struct RelyingPartyServer {
         webApp.http.client.configuration.timeout = HTTPClient.Configuration.Timeout(connect: .seconds(30))
         
         // Configure the proxy if settings provided.
-        if let proxy = Environment.get("PROXY_HOST"), let proxyHost = URL(string: proxy), let port = Environment.get("PROXY_PORT"), let proxyPort = Int(port) {
-            webApp.logger.notice("Server proxy configured on \(proxyHost.absoluteString):\(proxyPort)")
-            webApp.http.client.configuration.proxy = .server(host: proxyHost.absoluteString, port: proxyPort)
+        if let proxy = Environment.get("HTTP_PROXY") {
+            let pattern = #/(?:\/\/(?:(?<username>[^:]+)?:(?<password>[^:]+)@)?(?<host>[^:]+):(?<port>[0-9]+))/#
+            
+            if let match = proxy.firstMatch(of: pattern), let port = Int(match.port) {
+                var message = "Server proxy configured on \(match.host):\(match.port)"
+                var authorization: HTTPClient.Authorization? = nil
+                
+                if let username = match.username, let password = match.password {
+                    message += " with authentication"
+                    authorization = HTTPClient.Authorization.basic(username: String(username), password: String(password))
+                }
+                
+                webApp.logger.notice(Logger.Message(stringLiteral: message))
+                webApp.http.client.configuration.proxy = .server(host: String(match.host), port: port, authorization: authorization)
+            }
         }
         
         // Add root certificate authority if provided.

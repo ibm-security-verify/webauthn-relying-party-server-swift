@@ -135,13 +135,19 @@ The base URL is the fully qualified hostname of your tenant.  For example:
 BASE_URL=https://example.verify.ibm.com
 ``` 
 
-#### `PROXY_HOST` and `PROXY_PORT`
+#### `HTTP_PROXY`
 
-(OPTIONAL) The proxy hostname and port enable requests to the relying party server to be forwarded to your tenant. For example:
+(OPTIONAL) Enable proxy requests to the relying party server to be forwarded to host defined by `BASE_URL`. For example:
 ```
-PROXY_HOST=proxy.example.verify.ibm.com
-PROXY_PORT=8080
+HTTP_PROXY=https://proxy.example.verify.ibm.com:8888
 ```
+ 
+
+> NOTE: Authenticated proxy is supported by setting the environment variable as:
+ ```
+HTTP_PROXY=https://username:password@proxy.example.verify.ibm.com:8888
+```
+
 
 #### `ROOT_CA`
 
