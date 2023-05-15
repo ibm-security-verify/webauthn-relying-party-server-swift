@@ -279,17 +279,19 @@ Below is a sample request payload for a assertion (signin):
 }
 ```
 
-If successful, the response format is as follows:
+If successful, the response format is a JSON structure is based on [Web Authentication:
+An API for accessing Public Key Credentials Level 2](https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#dictionary-assertion-options) as follows:
 ```
 {
-    "challenge": "4l96-NXQ8AZHUwhSlHHqesjW4rCXV6O566EF74qbtOI"
+    "rpId": "example.com",
+    "timeout": 240000,
+    "challenge": "3W9xV1-n6Qvvs9y0YrAr5MpNNba8Q9czsGH4hRdGFwk"
 }
 ```
 
 **Registration (attestation)**
 
-Below is a sample request payload for an attestation:
-
+Below is a sample request payload for an attestation: 
 ```
 {
     "displayName": "Anne's iPhone",
@@ -297,13 +299,34 @@ Below is a sample request payload for an attestation:
 }
 ```
 
-If successful, the response format is as follows:
+If successful, the response format is a JSON structure is based on [Web Authentication:
+An API for accessing Public Key Credentials Level 2](https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#dictionary-makecredentialoptions) as follows:
 ```
 {
-    "challenge": "4l96-NXQ8AZHUwhSlHHqesjW4rCXV6O566EF74qbtOI",
-    "name": "Anne",
-    "displayName": "Anne Johnson",
-    "userId": "ePGatpTNRBaoHdQ"
+    "rp": {
+        "id": "example.com",
+        "name": "IBM Cloud Relying Party"
+    },
+    "user": {
+        "id": "ePGatpTNRBaoHdQ",
+        "name": "anne",
+        "displayName": "Anne's iPhone"
+    },
+    "timeout": 240000,
+    "challenge": "g9yz-s_rsH4c_ulfLujO96U1wybV_Zut5tQeoKIcmtk",
+    "excludeCredentials": [],
+    "extensions": {},
+    "authenticatorSelection": {},
+    "pubKeyCredParams": [
+        {
+            "alg": -7,
+            "type": "public-key"
+        },
+        {
+            "alg": -257,
+            "type": "public-key"
+        }
+    ]
 }
 ```
 
