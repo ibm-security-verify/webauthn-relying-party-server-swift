@@ -26,7 +26,7 @@ class ISVAWebAuthnService: WebAuthnService {
         self.baseURL = baseURL.appendingPathComponent("/mga/sps/fido2/\(relyingPartyId)")
     }
     
-    func generateChallenge(token: Token, displayName: String?, type: ChallengeType) async throws -> FIDO2Challenge {
+    func generateChallenge(token: Token, displayName: String?, type: ChallengeType) async throws -> String {
         // Set the JSON request body.
         var body = "{"
         if let displayName = displayName {
@@ -55,20 +55,11 @@ class ISVAWebAuthnService: WebAuthnService {
             throw Abort(HTTPResponseStatus(statusCode: Int(response.status.code)), reason: String(buffer: body))
         }
         
-        // Get FIDO2 challenge.
-        guard let body = response.body, let json = try JSONSerialization.jsonObject(with: body, options: []) as? [String: Any], let challenge = json["challenge"] as? String else {
-            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse FIDO2 challenge.")
+        // Get the data from the reponse body.
+        guard let body = response.body else {
+            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain \(type.rawValue) response data.")
         }
         
-        // If an attestation challenge, parse the user element with the id, name and displayName.
-        if type == .assertion {
-            return FIDO2Challenge(challenge: challenge, userId: nil, name: nil, displayName: nil)
-        }
-        
-        guard let body = response.body, let json = try JSONSerialization.jsonObject(with: body, options: []) as? [String: Any], let user = json["user"] as? [String: Any], let userId = user["id"] as? String, let name = user["name"] as? String, let displayName = user["displayName"] as? String else {
-            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse FIDO2 user element in the JSON payload.")
-        }
-        
-        return FIDO2Challenge(challenge: challenge, userId: userId, name: name, displayName: displayName)
+        return String(buffer: body)
     }
 }
