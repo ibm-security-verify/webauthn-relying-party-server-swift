@@ -279,8 +279,8 @@ Below is a sample request payload for a assertion (signin):
 }
 ```
 
-If successful, the response format is a JSON structure is based on [Web Authentication:
-An API for accessing Public Key Credentials Level 2](https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#dictionary-assertion-options) as follows:
+If successful, the response format is a JSON structure based on [Web Authentication:
+An API for assertion generation (PublicKeyCredentialRequestOptions)](https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#dictionary-assertion-options) as follows:
 ```
 {
     "rpId": "example.com",
@@ -299,8 +299,8 @@ Below is a sample request payload for an attestation:
 }
 ```
 
-If successful, the response format is a JSON structure is based on [Web Authentication:
-An API for accessing Public Key Credentials Level 2](https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#dictionary-makecredentialoptions) as follows:
+If successful, the response format is a JSON structure based on [Web Authentication:
+An API for credential creation (PublicKeyCredentialCreationOptions)](https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#dictionary-makecredentialoptions) as follows:
 ```
 {
     "rp": {
