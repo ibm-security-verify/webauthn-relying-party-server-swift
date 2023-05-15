@@ -3,7 +3,7 @@
 # ================================
 # Build image
 # ================================
-FROM swift:5.7-jammy as build
+FROM swift:5.7.1-jammy as build
 
 # Install OS updates and, if needed, sqlite3
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \

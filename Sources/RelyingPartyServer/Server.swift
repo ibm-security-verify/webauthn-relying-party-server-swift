@@ -33,20 +33,52 @@ struct RelyingPartyServer {
         
         // Configure the proxy if settings provided.
         if let proxy = Environment.get("HTTP_PROXY") {
-            let pattern = #/(?:\/\/(?:(?<username>[^:]+)?:(?<password>[^:]+)@)?(?<host>[^:]+):(?<port>[0-9]+))/#
+            // We have to use old style NSRegularExpression to build for Linux.  Refer to: https://github.com/apple/swift/issues/62034
+            let pattern = #"(?:\/\/(?:(?<username>[^:]+)?:(?<password>[^:]+)@)?(?<host>[^:]+):(?<port>[0-9]+))"#
+            let regex = try NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+            let matches = regex.matches(in: proxy, options: [], range: NSMakeRange(0, proxy.utf16.count))
             
-            if let match = proxy.firstMatch(of: pattern), let port = Int(match.port) {
-                var message = "Server proxy configured on \(match.host):\(match.port)"
-                var authorization: HTTPClient.Authorization? = nil
-                
-                if let username = match.username, let password = match.password {
-                    message += " with authentication"
-                    authorization = HTTPClient.Authorization.basic(username: String(username), password: String(password))
+            var groups: [String: String] = [:]    // Hold the captured groups, at a minumun, we'll have host and port.
+            
+            if let match = matches.first {
+                for name in ["username", "password", "host", "port"] {
+                    let range = match.range(withName: name)
+                    
+                    // Extract the substring matching the named group
+                    if let substring = Range(range, in: proxy) {
+                        let value = String(proxy[substring])
+                        groups[name] = value
+                    }
                 }
                 
-                webApp.logger.notice(Logger.Message(stringLiteral: message))
-                webApp.http.client.configuration.proxy = .server(host: String(match.host), port: port, authorization: authorization)
+                // Make sure the captured group values are valid for proxy assignment.
+                if let host = groups["host"], let portValue = groups["port"], let port = Int(portValue) {
+                    var message = "Server proxy configured on \(host):\(port)"
+                    var authorization: HTTPClient.Authorization? = nil
+                    
+                    if let username = groups["username"], let password = groups["password"] {
+                        message += " with authentication"
+                        authorization = HTTPClient.Authorization.basic(username: String(username), password: String(password))
+                    }
+                    
+                    webApp.logger.notice(Logger.Message(stringLiteral: message))
+                    webApp.http.client.configuration.proxy = .server(host: host, port: port, authorization: authorization)
+                }
             }
+            
+            
+//            if let match = proxy.firstMatch(of: pattern), let port = Int(match.port) {
+//                var message = "Server proxy configured on \(match.host):\(match.port)"
+//
+//
+//                if let username = match.username, let password = match.password {
+//                    message += " with authentication"
+//                    authorization = HTTPClient.Authorization.basic(username: String(username), password: String(password))
+//                }
+//
+//                webApp.logger.notice(Logger.Message(stringLiteral: message))
+//                webApp.http.client.configuration.proxy = .server(host: String(match.host), port: port, authorization: authorization)
+//            }
         }
         
         // Add root certificate authority if provided.

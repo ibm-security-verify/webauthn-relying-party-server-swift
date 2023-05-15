@@ -133,7 +133,7 @@ extension WebAuthnService {
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain \(type.rawValue) response data.")
         }
         
-        webApp.logger.debug("generateChallenge:response:body\n\(body)")
+        webApp.logger.debug("generateChallenge:response:body\n\(String(buffer: body))")
         
         return String(buffer: body)
     }
