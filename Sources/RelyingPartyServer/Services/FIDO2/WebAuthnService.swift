@@ -99,7 +99,7 @@ extension WebAuthnService {
                 }
             """)
         }
-                                                
+        
         // Check the response status for 200 range.
         if !(200...299).contains(response.status.code), let body = response.body {
             throw Abort(HTTPResponseStatus(statusCode: Int(response.status.code)), reason: String(buffer: body))
@@ -114,7 +114,7 @@ extension WebAuthnService {
         }
         body += "}"
         
-        print("Challenge Request body \(body)")
+        webApp.logger.debug("generateChallenge:request:body\n\(body)")
         
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/\(type.rawValue)/options")) { request in
             request.headers.contentType = .json
@@ -122,8 +122,6 @@ extension WebAuthnService {
             request.headers.bearerAuthorization = BearerAuthorization(token: token.accessToken)
             request.body = ByteBuffer(string: body)
         }
-        
-        print("Challenge Response body \(String(buffer: response.body!))")
         
         // Check the response status for 200 range.
         if !(200...299).contains(response.status.code), let body = response.body {
@@ -134,6 +132,8 @@ extension WebAuthnService {
         guard let body = response.body else {
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain \(type.rawValue) response data.")
         }
+        
+        webApp.logger.debug("generateChallenge:response:body\n\(body)")
         
         return String(buffer: body)
     }

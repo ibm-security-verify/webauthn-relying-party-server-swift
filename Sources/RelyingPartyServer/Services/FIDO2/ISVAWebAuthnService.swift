@@ -48,7 +48,7 @@ class ISVAWebAuthnService: WebAuthnService {
             request.body = ByteBuffer(string: body)
         }
        
-        print("Challenge Response body \(String(buffer: response.body!))")
+        webApp.logger.debug("generateChallenge:request:body\n\(body)")
         
         // Check the response status for 200 range.
         if !(200...299).contains(response.status.code), let body = response.body {
@@ -59,6 +59,8 @@ class ISVAWebAuthnService: WebAuthnService {
         guard let body = response.body else {
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain \(type.rawValue) response data.")
         }
+        
+        webApp.logger.debug("generateChallenge:response:body\n\(body)")
         
         return String(buffer: body)
     }
