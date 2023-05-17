@@ -167,7 +167,7 @@ ROOT_CA=t4Ck1jbktkQT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0=
 | TRACE | Appropriate for messages that contain information normally of use only when tracing the execution of a program. |
 | DEBUG | Appropriate for messages that contain information normally of use only when debugging a program. |
 | INFO | Appropriate for informational messages. |
-| NOTICE | AAppropriate for conditions that are not error conditions, but that may require special handling. |
+| NOTICE | Appropriate for conditions that are not error conditions, but that may require special handling. |
 | WARNING | Appropriate for messages that are not error conditions, but more severe than notice. |
 | ERROR | Appropriate for error conditions. |
 | CRITICAL | Appropriate for critical error conditions that usually require immediate attention. |
@@ -295,7 +295,7 @@ Below is a sample request payload for an attestation:
 ```
 {
     "displayName": "Anne's iPhone",
-    "type": "assertion"
+    "type": "attestation"
 }
 ```
 
