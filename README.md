@@ -135,13 +135,45 @@ The base URL is the fully qualified hostname of your tenant.  For example:
 BASE_URL=https://example.verify.ibm.com
 ``` 
 
-#### `PROXY_HOST` and `PROXY_PORT`
+#### `HTTP_PROXY`
 
-(OPTIONAL) The proxy hostname and port enable requests to the relying party server to be forwarded to your tenant. For example:
+(OPTIONAL) Enable proxy requests to the relying party server to be forwarded to host defined by `BASE_URL`. For example:
 ```
-PROXY_HOST=proxy.example.verify.ibm.com
-PROXY_PORT=8080
+HTTP_PROXY=https://proxy.example.verify.ibm.com:8888
+```
+ 
+
+> NOTE: Authenticated proxy is supported by setting the environment variable as:
+ ```
+HTTP_PROXY=https://username:password@proxy.example.verify.ibm.com:8888
+```
+
+
+#### `ROOT_CA`
+
+(OPTIONAL) Add an additional certificate to the trust store for TLS request validation. For example:
+```
+ROOT_CA=t4Ck1jbktkQT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0=
 ``` 
+
+> NOTE: The `ROOT_CA` value must be base64 encoded from Privacy Enhanced Mail (PEM) certificate text.
+
+
+#### `LOG_LEVEL`
+
+(OPTIONAL) Output log messages for diagnostic purposes. Below are the acceptable values and descriptions.
+| Name | Description |
+|---|---|
+| TRACE | Appropriate for messages that contain information normally of use only when tracing the execution of a program. |
+| DEBUG | Appropriate for messages that contain information normally of use only when debugging a program. |
+| INFO | Appropriate for informational messages. |
+| NOTICE | Appropriate for conditions that are not error conditions, but that may require special handling. |
+| WARNING | Appropriate for messages that are not error conditions, but more severe than notice. |
+| ERROR | Appropriate for error conditions. |
+| CRITICAL | Appropriate for critical error conditions that usually require immediate attention. |
+
+> NOTE: Default is the `INFO` logging level. When run with the production environment, `NOTICE` is used to improve performance.
+
 
 ### Endpoints
 
@@ -247,31 +279,54 @@ Below is a sample request payload for a assertion (signin):
 }
 ```
 
-If successful, the response format is as follows:
+If successful, the response format is a JSON structure based on [Web Authentication:
+An API for assertion generation (PublicKeyCredentialRequestOptions)](https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#dictionary-assertion-options) as follows:
 ```
 {
-    "challenge": "4l96-NXQ8AZHUwhSlHHqesjW4rCXV6O566EF74qbtOI"
+    "rpId": "example.com",
+    "timeout": 240000,
+    "challenge": "3W9xV1-n6Qvvs9y0YrAr5MpNNba8Q9czsGH4hRdGFwk"
 }
 ```
 
 **Registration (attestation)**
 
-Below is a sample request payload for an attestation:
-
+Below is a sample request payload for an attestation: 
 ```
 {
     "displayName": "Anne's iPhone",
-    "type": "assertion"
+    "type": "attestation"
 }
 ```
 
-If successful, the response format is as follows:
+If successful, the response format is a JSON structure based on [Web Authentication:
+An API for credential creation (PublicKeyCredentialCreationOptions)](https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#dictionary-makecredentialoptions) as follows:
 ```
 {
-    "challenge": "4l96-NXQ8AZHUwhSlHHqesjW4rCXV6O566EF74qbtOI",
-    "name": "Anne",
-    "displayName": "Anne Johnson",
-    "userId": "ePGatpTNRBaoHdQ"
+    "rp": {
+        "id": "example.com",
+        "name": "IBM Cloud Relying Party"
+    },
+    "user": {
+        "id": "ePGatpTNRBaoHdQ",
+        "name": "anne",
+        "displayName": "Anne's iPhone"
+    },
+    "timeout": 240000,
+    "challenge": "g9yz-s_rsH4c_ulfLujO96U1wybV_Zut5tQeoKIcmtk",
+    "excludeCredentials": [],
+    "extensions": {},
+    "authenticatorSelection": {},
+    "pubKeyCredParams": [
+        {
+            "alg": -7,
+            "type": "public-key"
+        },
+        {
+            "alg": -257,
+            "type": "public-key"
+        }
+    ]
 }
 ```
 

@@ -3,11 +3,14 @@
 # ================================
 # Build image
 # ================================
-FROM swift:5.7-jammy as build
+FROM swift:5.7.1-jammy as build
 
 # Install OS updates and, if needed, sqlite3
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
     && apt-get -q update \
+    && apt-get -y install curl \
+    && apt-get -y install libssl-dev \
+    && apt-get -y install traceroute \
     && apt-get -q dist-upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
@@ -49,6 +52,9 @@ FROM ubuntu:latest
 # Make sure all system packages are up to date, and install only essential packages.
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
     && apt-get -q update \
+    && apt-get -y install curl \
+    && apt-get -y install libssl-dev \
+    && apt-get -y install traceroute \
     && apt-get -q dist-upgrade -y \
     && apt-get -q install -y \
       ca-certificates \

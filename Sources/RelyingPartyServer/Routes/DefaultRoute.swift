@@ -48,12 +48,6 @@ struct DefaultRoute: RouteCollection {
             fatalError("User authenticaton related environment variables not set or invalid.")
         }
         
-        // Configure the proxy if settings provided.
-        if let proxy = Environment.get("PROXY_HOST"), let proxyHost = URL(string: proxy), let port = Environment.get("PROXY_PORT"), let proxyPort = Int(port) {
-            webApp.logger.info("Server proxy configured on \(proxyHost.absoluteString):\(proxyPort)")
-            webApp.http.client.configuration.proxy = .server(host: proxyHost.absoluteString, port: proxyPort)
-        }
-        
         self.webApp = webApp
         
        // Create instances of services for Token (authorization of users and api clients), users and FIDO WebAuthn.
@@ -70,7 +64,7 @@ struct DefaultRoute: RouteCollection {
             self.apiTokenService = ISVATokenService(webApp, baseURL: baseURL, clientId: apiClientId, clientSecret: apiClientSecret)
         }
         
-        self.webApp.logger.info("Configured for \(platform.rawValue)")
+        self.webApp.logger.notice("Configured for \(platform.rawValue.uppercased())")
     }
     
     func boot(routes: RoutesBuilder) throws {
@@ -89,7 +83,7 @@ struct DefaultRoute: RouteCollection {
         
         // Used to generate a FIDO challenge for attestation and assertion.
         route.post("challenge", use: challenge)
-        
+                
         // Used to register an authenticatpr with a FIDO attestation result.
         route.post("register", use: register)
         
@@ -218,7 +212,7 @@ struct DefaultRoute: RouteCollection {
     /// The `displayName` is ignored when a assertion challenge is requested.
     ///
     /// Requesting a challenge to complete a subsequent registration operation (attestation) requires the request to have an authorization request header.
-    func challenge(_ req: Request) async throws -> FIDO2Challenge {
+    func challenge(_ req: Request) async throws -> Response {
         // Validate the request data.
         let challenge = try req.content.decode(ChallengeRequest.self)
         
@@ -240,7 +234,8 @@ struct DefaultRoute: RouteCollection {
         req.logger.info("Request for \(challenge.type) challenge.")
         
         do {
-            return try await webAuthnService.generateChallenge(token: token, displayName: displayName, type: challenge.type)
+            let body = try await webAuthnService.generateChallenge(token: token, displayName: displayName, type: challenge.type)
+            return Response(status: .ok, headers: HTTPHeaders([("Content-type", "application/json")]), body: .init(stringLiteral: body))
         }
         catch let error {
             req.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
@@ -274,7 +269,7 @@ struct DefaultRoute: RouteCollection {
         let registration = try req.content.decode(FIDO2Registration.self)
         
         do {
-           try await webAuthnService.createCredentail(token: token, nickname: registration.nickname, clientDataJSON: registration.clientDataJSON, attestationObject: registration.attestationObject, credentialId: registration.credentialId)
+           try await webAuthnService.createCredential(token: token, nickname: registration.nickname, clientDataJSON: registration.clientDataJSON, attestationObject: registration.attestationObject, credentialId: registration.credentialId)
         }
         catch let error {
             req.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
@@ -304,7 +299,7 @@ struct DefaultRoute: RouteCollection {
         let verification = try req.content.decode(FIDO2Verification.self)
         
         do {
-            let result = try await webAuthnService.verifyCredentail(token: try await token, clientDataJSON: verification.clientDataJSON, authenticatorData: verification.authenticatorData, credentialId: verification.credentialId, signature: verification.signature, userHandle: verification.userHandle)
+            let result = try await webAuthnService.verifyCredential(token: try await token, clientDataJSON: verification.clientDataJSON, authenticatorData: verification.authenticatorData, credentialId: verification.credentialId, signature: verification.signature, userHandle: verification.userHandle)
             
             
             print(String(decoding: result, as: UTF8.self))

@@ -28,18 +28,18 @@ protocol WebAuthnService {
     ///   - signature: The base64Url-encoded bytes of the signature of the challenge data that was produced by the authenticator.
     ///   - userHandle: The userId provided when creating this credential.
     /// - Returns: A JSON payload that contains the successful verification.
-    func verifyCredentail(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> Data
+    func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> Data
     
     /// Initiate a FIDO verification with authentication preferences for the challenge.
     /// - Parameters:
     ///   - token: The ``Token`` for authorizing requests to back-end services.
     ///   - displayName: The display name used by the authenticator for UI representation.
-    /// - Returns: The unique challenge used as part of this authentication attempt.
-    func generateChallenge(token: Token, displayName: String?, type: ChallengeType) async throws -> FIDO2Challenge
+    /// - Returns: A string representing the public key options for attestation or assertion.
+    func generateChallenge(token: Token, displayName: String?, type: ChallengeType) async throws -> String
 }
 
 extension WebAuthnService {
-    func verifyCredentail(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> Data {
+    func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> Data {
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/assertion/result")) { request in
             
             request.headers.contentType = .json
@@ -80,7 +80,7 @@ extension WebAuthnService {
     ///   - clientDataJSON: The base64Url-encoded clientDataJSON that is received from the WebAuthn client.
     ///   - attestationObject: The base64Url-encoded attestationObject that is received from the WebAuthn client.
     ///   - credentialId: The credential identifier that is received from the WebAuthn client.
-    func createCredentail(token: Token, nickname: String, clientDataJSON: String, attestationObject: String, credentialId: String) async throws {
+    func createCredential(token: Token, nickname: String, clientDataJSON: String, attestationObject: String, credentialId: String) async throws {
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/attestation/result")) { request in
             request.headers.contentType = .json
             request.headers.add(name: "Accept", value: HTTPMediaType.json.serialize())
@@ -99,14 +99,14 @@ extension WebAuthnService {
                 }
             """)
         }
-                                                
+        
         // Check the response status for 200 range.
         if !(200...299).contains(response.status.code), let body = response.body {
             throw Abort(HTTPResponseStatus(statusCode: Int(response.status.code)), reason: String(buffer: body))
         }
     }
 
-    func generateChallenge(token: Token, displayName: String?, type: ChallengeType) async throws -> FIDO2Challenge {
+    func generateChallenge(token: Token, displayName: String?, type: ChallengeType) async throws -> String {
         // Set the JSON request body.
         var body = "{"
         if let displayName = displayName {
@@ -114,7 +114,7 @@ extension WebAuthnService {
         }
         body += "}"
         
-        print("Challenge Request body \(body)")
+        webApp.logger.debug("generateChallenge:request:body\n\(body)")
         
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/\(type.rawValue)/options")) { request in
             request.headers.contentType = .json
@@ -122,29 +122,20 @@ extension WebAuthnService {
             request.headers.bearerAuthorization = BearerAuthorization(token: token.accessToken)
             request.body = ByteBuffer(string: body)
         }
-       
-        print("Challenge Response body \(String(buffer: response.body!))")
         
         // Check the response status for 200 range.
         if !(200...299).contains(response.status.code), let body = response.body {
             throw Abort(HTTPResponseStatus(statusCode: Int(response.status.code)), reason: String(buffer: body))
         }
         
-        // Get FIDO2 challenge.
-        guard let body = response.body, let json = try JSONSerialization.jsonObject(with: body, options: []) as? [String: Any], let challenge = json["challenge"] as? String else {
-            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse FIDO2 challenge.")
+        // Get the data from the reponse body.
+        guard let body = response.body else {
+            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain \(type.rawValue) response data.")
         }
         
-        // If an attestation challenge, parse the user element with the id, name and displayName.
-        if type == .assertion {
-            return FIDO2Challenge(challenge: challenge, userId: nil, name: nil, displayName: nil)
-        }
+        webApp.logger.debug("generateChallenge:response:body\n\(String(buffer: body))")
         
-        guard let body = response.body, let json = try JSONSerialization.jsonObject(with: body, options: []) as? [String: Any], let user = json["user"] as? [String: Any], let userId = user["id"] as? String, let name = user["name"] as? String, let displayName = user["displayName"] as? String else {
-            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse FIDO2 user element in the JSON payload.")
-        }
-        
-        return FIDO2Challenge(challenge: challenge, userId: userId, name: name, displayName: displayName)
+        return String(buffer: body)
     }
 }
 

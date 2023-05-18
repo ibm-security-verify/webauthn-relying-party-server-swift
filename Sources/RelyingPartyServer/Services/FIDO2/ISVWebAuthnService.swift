@@ -22,7 +22,7 @@ class ISVWebAuthnService: WebAuthnService {
         self.baseURL = baseURL.appendingPathComponent("/v2.0/factors/fido2/relyingparties/\(relyingPartyId)")
     }
     
-    func verifyCredentail(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> Data {
+    func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> Data {
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/assertion/result?returnJwt=true")) { request in
             
             request.headers.contentType = .json
