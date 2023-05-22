@@ -12,10 +12,17 @@ class ISVTokenService: TokenService {
     let webApp: Application
     
     required init(_ webApp: Application, baseURL: URL, clientId: String, clientSecret: String) {
+        webApp.logger.debug("init Entry")
+        
+        defer {
+            webApp.logger.debug("init Exit")
+        }
+        
         self.webApp = webApp
         self.baseURL = baseURL.appendingPathComponent("/v1.0/endpoint/default/token")
         self.clientId = clientId
         self.clientSecret = clientSecret
+        self.webApp.logger.debug("Base URL for token service is: \(self.baseURL.absoluteString)")
     }
     
     /// Authorize an application client credentials using jwt-bearer grant type returning an OIDC token.
@@ -23,10 +30,18 @@ class ISVTokenService: TokenService {
     ///   - assertion: The  JSON web token assertion to be exchanged.
     /// - Returns: An instance of a ``Token``.
     func jwtBearer(assertion: String) async throws -> Token {
+        webApp.logger.debug("jwtBearer Entry")
+        
+        defer {
+            webApp.logger.debug("jwtBearer Exit")
+        }
+        
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString)) { request in
             request.headers.contentType = .urlEncodedForm
             request.headers.basicAuthorization = BasicAuthorization(username: self.clientId, password: self.clientSecret)
             request.body = ByteBuffer(string: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&scope=openid&assertion=\(assertion)")
+            
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
         
         // Check the response status for 200 range.

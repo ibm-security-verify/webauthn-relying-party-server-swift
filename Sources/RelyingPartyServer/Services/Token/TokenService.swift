@@ -37,9 +37,17 @@ extension TokenService {
     /// Authorize an API client credentials grant type returning an OIDC token
     /// - Returns: An instance of a ``Token``.
     func clientCredentials() async throws -> Token {
+        webApp.logger.debug("clientCredentials Entry")
+        
+        defer {
+            webApp.logger.debug("clientCredentials Exit")
+        }
+        
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString)) { request in
             request.headers.contentType = .urlEncodedForm
             request.body = ByteBuffer(string: "client_id=\(self.clientId)&client_secret=\(self.clientSecret)&grant_type=client_credentials")
+            
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
         
         // Check the response status for 200 range.
@@ -57,9 +65,17 @@ extension TokenService {
     ///   - password: The users' password.
     /// - Returns: An instance of a ``Token``.
     func password(username: String, password: String) async throws -> Token {
+        webApp.logger.debug("password Entry")
+        
+        defer {
+            webApp.logger.debug("password Exit")
+        }
+        
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString)) { request in
             request.headers.contentType = .urlEncodedForm
             request.body = ByteBuffer(string: "client_id=\(self.clientId)&client_secret=\(self.clientSecret)&grant_type=password&username=\(username)&password=\(password)&scope=openid")
+            
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
         
         // Check the response status for 200 range.
