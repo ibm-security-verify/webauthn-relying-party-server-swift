@@ -20,11 +20,28 @@ struct DefaultRoute: RouteCollection {
     private let authTokenService: TokenService
     private let apiTokenService: TokenService
     private let webApp: Application
+    private let platform: Platform
+    
+    // Reserved headers.
+    private let reservedHeaders = ["content-length",
+                                   "authorization",
+                                   "connection",
+                                   "host",
+                                   "accept-encoding",
+                                   "proxy-authenticate",
+                                   "proxy-authorization",
+                                   "www-authenticate"]
     
     /// Initializes the default routes for user interactions.
     /// - Parameters:
     ///   - webApp: Core type representing a Vapor application.
     init(_ webApp: Application) throws {
+        webApp.logger.debug("init Entry")
+        
+        defer {
+            webApp.logger.debug("init Exit")
+        }
+        
         // Load the base URL for interacting with the services.
         guard let platformValue = Environment.get("PLATFORM"), let platform = Platform(rawValue: platformValue.lowercased()) else {
             fatalError("The platform environment variable not set or invalid. Valid PLATFORM values are 'ISV' or 'ISVA'.")
@@ -43,14 +60,12 @@ struct DefaultRoute: RouteCollection {
             fatalError("FIDO2 related environment variables not set or invalid.")
         }
         
-       // If not provided, then the /authenticate, /signup and /validate endpoints will return a 400 Bad Request response.
+        // If not provided, then the /authenticate, /signup and /validate endpoints will return a 400 Bad Request response.
         guard let authClientId = Environment.get("AUTH_CLIENT_ID"), let authClientSecret = Environment.get("AUTH_CLIENT_SECRET") else {
             fatalError("User authenticaton related environment variables not set or invalid.")
         }
         
-        self.webApp = webApp
-        
-       // Create instances of services for Token (authorization of users and api clients), users and FIDO WebAuthn.
+        // Create instances of services for Token (authorization of users and api clients), users and FIDO WebAuthn.
         switch platform {
         case .isv:
             self.userService = ISVUserService(webApp, baseURL: baseURL)
@@ -63,6 +78,9 @@ struct DefaultRoute: RouteCollection {
             self.authTokenService = ISVATokenService(webApp, baseURL: baseURL, clientId: authClientId, clientSecret: authClientSecret)
             self.apiTokenService = ISVATokenService(webApp, baseURL: baseURL, clientId: apiClientId, clientSecret: apiClientSecret)
         }
+        
+        self.platform = platform
+        self.webApp = webApp
         
         self.webApp.logger.notice("Configured for \(platform.rawValue.uppercased())")
     }
@@ -83,7 +101,7 @@ struct DefaultRoute: RouteCollection {
         
         // Used to generate a FIDO challenge for attestation and assertion.
         route.post("challenge", use: challenge)
-                
+        
         // Used to register an authenticatpr with a FIDO attestation result.
         route.post("register", use: register)
         
@@ -106,6 +124,12 @@ struct DefaultRoute: RouteCollection {
     /// }
     /// ```
     func authenticate(_ req: Request) async throws -> Token {
+        webApp.logger.debug("authenticate Entry")
+        
+        defer {
+            webApp.logger.debug("authenticate Exit")
+        }
+        
         // Validate the request data.
         try UserAuthentication.validate(content: req)
         let authenticate = try req.content.decode(UserAuthentication.self)
@@ -132,6 +156,12 @@ struct DefaultRoute: RouteCollection {
     /// }
     /// ```
     func signup(_ req: Request) async throws -> OTPChallenge {
+        webApp.logger.debug("signup Entry")
+        
+        defer {
+            webApp.logger.debug("signup Exit")
+        }
+        
         // Validate the request data.
         try UserSignUp.validate(content: req)
         let user = try req.content.decode(UserSignUp.self)
@@ -166,6 +196,12 @@ struct DefaultRoute: RouteCollection {
     /// }
     /// ```
     func validate(_ req: Request) async throws -> Token {
+        webApp.logger.debug("validate Entry")
+        
+        defer {
+            webApp.logger.debug("validate Exit")
+        }
+        
         // Validate the request data.
         try OTPVerification.validate(content: req)
         let validation = try req.content.decode(OTPVerification.self)
@@ -213,6 +249,12 @@ struct DefaultRoute: RouteCollection {
     ///
     /// Requesting a challenge to complete a subsequent registration operation (attestation) requires the request to have an authorization request header.
     func challenge(_ req: Request) async throws -> Response {
+        webApp.logger.debug("challenge Entry")
+        
+        defer {
+            webApp.logger.debug("challenge Exit")
+        }
+        
         // Validate the request data.
         let challenge = try req.content.decode(ChallengeRequest.self)
         
@@ -222,11 +264,6 @@ struct DefaultRoute: RouteCollection {
         // Default to the service token.
         var token = try await token
         
-        // If an attestation is request and the bearer doesn't exist in the header, throw error.
-        if challenge.type == .attestation, req.headers.bearerAuthorization == nil {
-            throw Abort(.unauthorized)
-        }
-        
         if let bearer = req.headers.bearerAuthorization {
             token = Token(accessToken: bearer.token)
         }
@@ -234,7 +271,11 @@ struct DefaultRoute: RouteCollection {
         req.logger.info("Request for \(challenge.type) challenge.")
         
         do {
-            let body = try await webAuthnService.generateChallenge(token: token, displayName: displayName, type: challenge.type)
+            // Remove the reserved headers from the incoming request headers.
+            let headers = req.headers.filter(({ !reservedHeaders.contains($0.name.lowercased()) }))
+            
+            let body = try await webAuthnService.generateChallenge(token: token, displayName: displayName, type: challenge.type,
+                                                                   headers: headers.reduce(into: [String: String]()) { $0[$1.name] = $1.value })
             return Response(status: .ok, headers: HTTPHeaders([("Content-type", "application/json")]), body: .init(stringLiteral: body))
         }
         catch let error {
@@ -256,6 +297,12 @@ struct DefaultRoute: RouteCollection {
     ///    "credentialId": "VGhpcyBpcyBh..."
     /// }
     func register(_ req: Request) async throws -> HTTPStatus {
+        webApp.logger.debug("register Entry")
+        
+        defer {
+            webApp.logger.debug("register Exit")
+        }
+        
         // Check if the bearer header is present, it not throw a 401.
         guard let bearer = req.headers.bearerAuthorization else {
             throw Abort(.unauthorized)
@@ -269,7 +316,10 @@ struct DefaultRoute: RouteCollection {
         let registration = try req.content.decode(FIDO2Registration.self)
         
         do {
-           try await webAuthnService.createCredential(token: token, nickname: registration.nickname, clientDataJSON: registration.clientDataJSON, attestationObject: registration.attestationObject, credentialId: registration.credentialId)
+            // Remove the reserved headers from the incoming request headers.
+            let headers = req.headers.filter(({ !reservedHeaders.contains($0.name.lowercased()) }))
+            
+            try await webAuthnService.createCredential(token: token, nickname: registration.nickname, clientDataJSON: registration.clientDataJSON, attestationObject: registration.attestationObject, credentialId: registration.credentialId, headers: headers.reduce(into: [String: String]()) { $0[$1.name] = $1.value })
         }
         catch let error {
             req.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
@@ -293,7 +343,13 @@ struct DefaultRoute: RouteCollection {
     ///    "signature": "OP84jBpcyB...",
     ///    "userHandle": "a1b2c3d4"
     /// }
-    func signin(_ req: Request) async throws -> Token {
+    func signin(_ req: Request) async throws -> Response {
+        webApp.logger.debug("signin Entry")
+        
+        defer {
+            webApp.logger.debug("signin Exit")
+        }
+        
         // Validate the request data.
         try FIDO2Verification.validate(content: req)
         let verification = try req.content.decode(FIDO2Verification.self)
@@ -301,11 +357,28 @@ struct DefaultRoute: RouteCollection {
         do {
             let result = try await webAuthnService.verifyCredential(token: try await token, clientDataJSON: verification.clientDataJSON, authenticatorData: verification.authenticatorData, credentialId: verification.credentialId, signature: verification.signature, userHandle: verification.userHandle)
             
+            // Attempt to create a token from the response payload.
+            if let data = result.body, let token = try await parseSigninResult(Data(buffer: data)) {
+                // Convert the token to JSON.
+                let json = try JSONEncoder().encode(token)
+                
+                return Response(status: .ok, headers: HTTPHeaders([("Content-type", "application/json")]), body: .init(data: json))
+            }
             
-            print(String(decoding: result, as: UTF8.self))
+            // No token created, return the cookie response headers as the body.
+            if let cookies = result.headers.cookie {
+                let values = cookies.all.reduce(into: [String: String]()) {
+                    $0[$1.key] = $1.value.string
+                }
+                
+                let items: [String: [String: String]] = ["items": values]
+                
+                // Convert the dictionary to JSON.
+                let json = try JSONEncoder().encode(items)
+                return Response(status: .ok, headers: HTTPHeaders([("Content-type", "application/json")]), body: .init(data: json))
+            }
             
-            // Parse the signin WebAuthn assertion/result JSON response.
-            return try await parseSigninResult(result)
+            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "The response from \(self.platform.rawValue) did not contain an OIDC token or an authenticated session cookie(s).  Please check your \(self.platform.rawValue) environment configuration.")
         }
         catch let error {
             req.logger.error(Logger.Message(stringLiteral: error.localizedDescription))
@@ -319,19 +392,21 @@ struct DefaultRoute: RouteCollection {
     /// - Parameters:
     ///   - data: A JSON payload that contains the successful verification.
     /// - Returns: A ``Token`` representing the authenticated user.
-    func parseSigninResult(_ data: Data) async throws -> Token {
+    func parseSigninResult(_ data: Data) async throws -> Token? {
         switch self.authTokenService {
-        // For ISVA we need to generate a JWT to present to the token endpoint for verification and token issue.
+        // For ISVA, the token response is based on the response including "access_token" in payload dervied from an ISVA mapping rule
         case is ISVATokenService:
             guard let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let attributes = json["attributes"] as? [String: Any], let responseData = attributes["responseData"] as? [String: Any], let accessToken = responseData["access_token"] as? String else {
-                throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse the ISVA assertion data from the FIDO2 assertion/result response.  Check the FIDO2 mediator Javascript.")
+
+                webApp.logger.info("Unable to parse the ISVA assertion data from the FIDO2 assertion/result response.  Check the FIDO2 mediator Javascript.")
+                return nil
             }
             
             return Token(accessToken: accessToken)
         // For ISV, the JWT is created and validated, so we can just return the token.
         case is ISVTokenService:
             guard let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let assertion = json["assertion"] as? String else {
-                throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse the ISVA assertion data from the FIDO2 assertion/result response.")
+                throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse the ISV assertion data from the FIDO2 assertion/result response.")
             }
             
             return try await authTokenService.jwtBearer(assertion: assertion)
@@ -343,6 +418,12 @@ struct DefaultRoute: RouteCollection {
     /// The ``Token`` for authorizing requests to back-end services.
     var token: Token {
         get async throws {
+            webApp.logger.debug("token Entry")
+            
+            defer {
+                webApp.logger.debug("token Exit")
+            }
+            
             // Get token from cache
             if let value = try await webApp.cache.get("token", as: Token.self) {
                 webApp.logger.info("Cached token \(value.accessToken).")

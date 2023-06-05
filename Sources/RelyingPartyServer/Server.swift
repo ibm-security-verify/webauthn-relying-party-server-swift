@@ -65,20 +65,6 @@ struct RelyingPartyServer {
                     webApp.http.client.configuration.proxy = .server(host: host, port: port, authorization: authorization)
                 }
             }
-            
-            
-//            if let match = proxy.firstMatch(of: pattern), let port = Int(match.port) {
-//                var message = "Server proxy configured on \(match.host):\(match.port)"
-//
-//
-//                if let username = match.username, let password = match.password {
-//                    message += " with authentication"
-//                    authorization = HTTPClient.Authorization.basic(username: String(username), password: String(password))
-//                }
-//
-//                webApp.logger.notice(Logger.Message(stringLiteral: message))
-//                webApp.http.client.configuration.proxy = .server(host: String(match.host), port: port, authorization: authorization)
-//            }
         }
         
         // Add root certificate authority if provided.

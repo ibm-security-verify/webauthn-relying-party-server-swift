@@ -30,7 +30,7 @@ class ISVWebAuthnService: WebAuthnService {
         webApp.logger.debug("Base URL for FIDO2 is: \(self.baseURL.absoluteString)")
     }
     
-    func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> Data {
+    func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> ClientResponse {
         webApp.logger.debug("verifyCredential Entry")
         
         defer {
@@ -64,11 +64,6 @@ class ISVWebAuthnService: WebAuthnService {
             throw Abort(HTTPResponseStatus(statusCode: Int(response.status.code)), reason: String(buffer: body))
         }
         
-        // Get the data from the reponse body.
-        guard let body = response.body else {
-            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain assertion result response data.")
-        }
-        
-        return Data(buffer: body)
+        return response
     }
 }
