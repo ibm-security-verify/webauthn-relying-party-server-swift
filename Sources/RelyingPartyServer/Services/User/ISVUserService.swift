@@ -17,8 +17,15 @@ class ISVUserService: UserService {
     ///   - webApp: Core type representing a Vapor application.
     ///   - baseURL: The base ``URL`` for the host.
     required init(_ webApp: Application, baseURL: URL) {
+        webApp.logger.debug("init Entry")
+        
+        defer {
+            webApp.logger.debug("init Exit")
+        }
+        
         self.webApp = webApp
         self.baseURL = baseURL.appendingPathComponent("/v2.0")
+        self.webApp.logger.debug("Base URL for token service is: \(self.baseURL.absoluteString)")
     }
     
     /// Generate an one-time password to be emailed.
@@ -26,11 +33,18 @@ class ISVUserService: UserService {
     ///   - token: The ``Token`` for authorizing requests to back-end services.
     ///   - email: The user's email address
     func generateOTP(token: Token, email: String) async throws -> OTPChallenge {
+        webApp.logger.debug("generateOTP Entry")
+        
+        defer {
+            webApp.logger.debug("generateOTP Exit")
+        }
+        
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/factors/emailotp/transient/verifications")) { request in
             request.headers.contentType = .json
             request.headers.add(name: "accept", value: HTTPMediaType.json.serialize())
             request.headers.bearerAuthorization = BearerAuthorization(token: token.accessToken)
             try request.content.encode(["emailAddress": "\(email)"])
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
         
         // Check the response status for 200 range.
@@ -55,11 +69,18 @@ class ISVUserService: UserService {
     ///   - oneTimePassword: The one-time password value
     ///   - user: The use's sign-up details.
     func verifyUser(token: Token, transactionId: String, oneTimePassword: String, user: UserSignUp) async throws -> String {
+        webApp.logger.debug("verifyUser Entry")
+        
+        defer {
+            webApp.logger.debug("verifyUser Exit")
+        }
+        
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/factors/emailotp/transient/verifications/\(transactionId)")) { request in
             request.headers.contentType = .json
             request.headers.add(name: "Accept", value: HTTPMediaType.json.serialize())
             request.headers.bearerAuthorization = BearerAuthorization(token: token.accessToken)
             try request.content.encode(["otp": "\(oneTimePassword)"])
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
         
         // Check the response status for 200 range.
@@ -79,6 +100,12 @@ class ISVUserService: UserService {
     ///   - email: The user's email address.
     ///   - name: The users' first and last name.
     internal func createUser(token: Token, email: String, name: String) async throws -> String {
+        webApp.logger.debug("createUser Entry")
+        
+        defer {
+            webApp.logger.debug("createUser Exit")
+        }
+        
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/Users")) { request in
             request.headers.contentType = HTTPMediaType(type: "application", subType: "scim+json")
             request.headers.add(name: "Accept", value: HTTPMediaType(type: "application", subType: "scim+json").serialize())
@@ -110,6 +137,8 @@ class ISVUserService: UserService {
                    ]
                 }
             """)
+            
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
         
         // Check the response status for 200 range.

@@ -74,7 +74,7 @@ PLATFORM=ISV
 
 #### `APPLE_APP_SITE_ASSOC`
 
-This is a string to represent the JSON for Apple to establish a secure association between domains and your app.  The following JSON code represent the contents of a simple association:
+This is a string to represent the JSON for Apple to establish a secure association between domains and your app. The following JSON code represent the contents of a simple association:
 ```
 {
     "webcredentials":{
@@ -97,6 +97,41 @@ webcredential:example.com
 ```
 
 See [Supporting associated domains](https://developer.apple.com/documentation/xcode/supporting-associated-domains) for more information.
+
+
+
+#### `GOOGLE_ASSET_LINKS`
+
+This is a string to represent the JSON for Google to associate login credentials between an app and website. The following JSON code represent the contents of a simple assetlink format:
+```
+[{
+  "relation": ["delegate_permission/common.get_login_creds"],
+  "target": {
+    "namespace": "web",
+    "site": "https://example.com"
+  }
+ },
+ {
+  "relation": ["delegate_permission/common.get_login_creds"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.example.app",
+    "sha256_cert_fingerprints": [
+      "DE:AD:BE:EF:****"
+    ]
+  }
+ }]
+```
+
+The JSON content should be minified when assigned to the environment variable. For example:
+
+```
+GOOGLE_ASSET_LINKS=[{"relation":["delegate_permission/common.get_login_creds"],"target":{"namespace":"web","site":"https://example.com"}},{"relation":["delegate_permission/common.get_login_creds"],"target":{"namespace":"android_app","package_name":"com.exampl.app","sha256_cert_fingerprints":["DE:AD:BE:EF:****"]}}]
+```
+
+See [Google digital asset links](https://developers.google.com/digital-asset-links/v1/getting-started) for more information.
+
+
 
 #### `FIDO2_RELYING_PARTY_ID`
 
@@ -259,7 +294,7 @@ Registers a new public-key credential for a user.  Below is a sample request pay
 
 If successful, the response status a `201 Created`.
 
-> The `access_token` must be presented in the request authorization header.  For example:
+> The `access_token` must be presented in the request authorization header.  Authenticated session-cookies can also be passed in the request headers.  For example:
 >```
 >Authorization: Bearer NLL8EtOJFdbPiwPwZ
 >```

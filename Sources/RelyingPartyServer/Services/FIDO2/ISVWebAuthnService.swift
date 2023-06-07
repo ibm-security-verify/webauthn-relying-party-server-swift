@@ -18,11 +18,25 @@ class ISVWebAuthnService: WebAuthnService {
     ///   - baseURL: The base ``URL`` for the host.
     ///   - relyingPartyId: The UUID representing the unique relying party.
     required init(_ webApp: Application, baseURL: URL, relyingPartyId: String) {
+        webApp.logger.debug("init Entry")
+        
+        defer {
+            webApp.logger.debug("init Exit")
+        }
+        
         self.webApp = webApp
         self.baseURL = baseURL.appendingPathComponent("/v2.0/factors/fido2/relyingparties/\(relyingPartyId)")
+        
+        webApp.logger.debug("Base URL for FIDO2 is: \(self.baseURL.absoluteString)")
     }
     
-    func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> Data {
+    func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> ClientResponse {
+        webApp.logger.debug("verifyCredential Entry")
+        
+        defer {
+            webApp.logger.debug("verifyCredential Exit")
+        }
+        
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/assertion/result?returnJwt=true")) { request in
             
             request.headers.contentType = .json
@@ -41,6 +55,8 @@ class ISVWebAuthnService: WebAuthnService {
                    }
                 }
             """)
+            
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
         
         // Check the response status for 200 range.
@@ -48,11 +64,6 @@ class ISVWebAuthnService: WebAuthnService {
             throw Abort(HTTPResponseStatus(statusCode: Int(response.status.code)), reason: String(buffer: body))
         }
         
-        // Get the data from the reponse body.
-        guard let body = response.body else {
-            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain assertion result response data.")
-        }
-        
-        return Data(buffer: body)
+        return response
     }
 }

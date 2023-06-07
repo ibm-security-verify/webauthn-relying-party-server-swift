@@ -22,33 +22,57 @@ class ISVAWebAuthnService: WebAuthnService {
     ///
     /// `/<aac_junction>/sps/fido2/<relying_party_identifier>`
     required init(_ webApp: Application, baseURL: URL, relyingPartyId: String) {
+        webApp.logger.debug("init Entry")
+        
+        defer {
+            webApp.logger.debug("init Exit")
+        }
+        
         self.webApp = webApp
         self.baseURL = baseURL.appendingPathComponent("/mga/sps/fido2/\(relyingPartyId)")
+        
+        webApp.logger.debug("Base URL for FIDO2 is: \(self.baseURL.absoluteString)")
     }
     
-    func generateChallenge(token: Token, displayName: String?, type: ChallengeType) async throws -> String {
+    func generateChallenge(token: Token, displayName: String?, type: ChallengeType, headers: [String: String]? = nil) async throws -> String {
+        webApp.logger.debug("generateChallenge Entry")
+        
+        defer {
+            webApp.logger.debug("generateChallenge Exit")
+        }
+        
         // Set the JSON request body.
-        var body = "{"
+        var payload = "{"
         if let displayName = displayName {
-            body += "\"displayName\": \"\(displayName)\""
+            payload += "\"displayName\": \"\(displayName)\""
         }
         
         if type == .assertion {
-            body += "\"username\": \"\""
+            payload += "\"username\": \"\""
         }
         
-        body += "}"
+        payload += "}"
         
-        print("Challenge Request body \(body)")
+        webApp.logger.debug("Request body:\n\(payload)")
         
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/\(type.rawValue)/options")) { request in
+            
+            request.body = ByteBuffer(string: payload)
             request.headers.contentType = .json
             request.headers.add(name: "Accept", value: HTTPMediaType.json.serialize())
             request.headers.bearerAuthorization = BearerAuthorization(token: token.accessToken)
-            request.body = ByteBuffer(string: body)
+            
+            // Add additional headers if available.
+            if let headers = headers {
+                headers.forEach { item in
+                    if !request.headers.contains(name: item.key) {
+                        request.headers.add(name: item.key, value: item.value)
+                    }
+                }
+            }
+            
+            webApp.logger.debug("Request headers:\n\(request.headers)")
         }
-       
-        webApp.logger.debug("generateChallenge:request:body\n\(body)")
         
         // Check the response status for 200 range.
         if !(200...299).contains(response.status.code), let body = response.body {
@@ -60,7 +84,7 @@ class ISVAWebAuthnService: WebAuthnService {
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain \(type.rawValue) response data.")
         }
         
-        webApp.logger.debug("generateChallenge:response:body\n\(body)")
+        webApp.logger.debug("Response body:\n\(String(buffer: body))")
         
         return String(buffer: body)
     }

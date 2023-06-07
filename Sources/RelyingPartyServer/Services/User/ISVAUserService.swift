@@ -19,8 +19,15 @@ class ISVAUserService: UserService {
     ///   - webApp: Core type representing a Vapor application.
     ///   - baseURL: The base ``URL`` for the host.
     required init(_ webApp: Application, baseURL: URL) {
+        webApp.logger.debug("init Entry")
+        
+        defer {
+            webApp.logger.debug("init Exit")
+        }
+        
         self.webApp = webApp
         self.baseURL = baseURL.appendingPathComponent("/v2.0")
+        self.webApp.logger.debug("Base URL for token service is: \(self.baseURL.absoluteString)")
     }
     
     /// Generate an one-time password to be emailed.
