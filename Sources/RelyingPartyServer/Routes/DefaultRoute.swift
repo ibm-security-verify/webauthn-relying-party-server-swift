@@ -365,8 +365,8 @@ struct DefaultRoute: RouteCollection {
                 return Response(status: .ok, headers: HTTPHeaders([("Content-type", "application/json")]), body: .init(data: json))
             }
             
-            // No token created, return the cookie response headers as the body.
-            if let cookies = result.headers.cookie {
+            // No token created, return the set-cookie response headers as the body.
+            if let cookies = result.headers.setCookie {
                 let values = cookies.all.reduce(into: [String: String]()) {
                     $0[$1.key] = $1.value.string
                 }
