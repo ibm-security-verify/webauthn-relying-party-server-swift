@@ -41,22 +41,30 @@ class ISVAWebAuthnService: WebAuthnService {
             webApp.logger.debug("generateChallenge Exit")
         }
         
+        var username = ""
+        
+        // For attestation, the IV-USER header needs to exist.
+        if type == .attestation {
+            if let headers, let key = headers.keys.first(where: { $0.compare("iv-user", options: .caseInsensitive) == .orderedSame }), let value = headers[key] {
+                username = value
+            }
+            else {
+                throw Abort(HTTPResponseStatus(statusCode: 400), reason: "An attestation challenge requires iv-user in the request headers.")
+            }
+        }
+        
         // Set the JSON request body.
         var payload = "{"
         if let displayName = displayName {
-            payload += "\"displayName\": \"\(displayName)\""
+            payload += "\"displayName\": \"\(displayName)\","
         }
         
-        if type == .assertion {
-            payload += "\"username\": \"\""
-        }
-        
+        payload += "\"username\": \"\(username)\""
         payload += "}"
         
         webApp.logger.debug("Request body:\n\(payload)")
         
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/\(type.rawValue)/options")) { request in
-            
             request.body = ByteBuffer(string: payload)
             request.headers.contentType = .json
             request.headers.add(name: "Accept", value: HTTPMediaType.json.serialize())

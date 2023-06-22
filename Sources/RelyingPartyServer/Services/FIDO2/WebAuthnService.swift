@@ -147,7 +147,6 @@ extension WebAuthnService {
         webApp.logger.debug("Request body:\n\(payload)")
         
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/\(type.rawValue)/options")) { request in
-            
             request.body = ByteBuffer(string: payload)
             request.headers.contentType = .json
             request.headers.add(name: "Accept", value: HTTPMediaType.json.serialize())
