@@ -74,7 +74,7 @@ PLATFORM=ISV
 
 #### `AUTH_SESSION`
 
-(OPTIONAL) When `PLATFORM=ISVA`, the `AUTH_SESSION` allows the relying party server to parse JSON data from the [`/v1/signin`](#POST-/v1/signin) response to generate an authenticated session.  The availble values are:
+(OPTIONAL) When `PLATFORM=ISVA`, the `AUTH_SESSION` allows the relying party server to parse JSON data from the `/v1/signin` response to generate an authenticated session.  The availble values are:
 
 | Name | Description |
 |---|---|
@@ -394,7 +394,8 @@ Validates a public-key credential for a user with an existing registration.  Bel
     "clientDataJSON": "eyUyBg8Li8GH...",
     "authenticatorData": "o2M884Yt0a3B7...",
     "credentialId": "VGhpcyBpcyBh...",
-    "signature": "OP84jBpcyB...
+    "signature": "OP84jBpcyB...",
+    "userHandle": "ePGatpTNR..."
 }
 ```
 
