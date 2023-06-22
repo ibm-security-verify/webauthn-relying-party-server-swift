@@ -5,32 +5,38 @@
 import Vapor
 
 /// The `TokenService` obtains a new OAuth token from an authorization server.
-protocol TokenService {
+class TokenService {
+    /// Core type representing a Vapor application.
+    let webApp: Application
+    
     /// The base ``URL`` for the host.
-    var baseURL: URL { get }
+    let baseURL: URL
     
     /// The client identifier issued to the client for performing operations on behalf of a user.
-    var clientId: String { get }
+    let clientId: String
     
     /// The client secret.
-    var clientSecret: String { get }
+    let clientSecret: String
     
-    /// Core type representing a Vapor application.
-    var webApp: Application { get }
-    
-    /// Initialize the token service.
+    /// Initialize the Webauthn service.
     /// - Parameters:
     ///   - webApp: Core type representing a Vapor application.
     ///   - baseURL: The base ``URL`` for the host.
     ///   - clientId: The client identifier issued to the client for performing operations on behalf of a user.
     ///   - clientSecret: The client secret.
-    init(_ webApp: Application, baseURL: URL, clientId: String, clientSecret: String)
-    
-    /// Authorize an application client credentials using jwt-bearer grant type returning an OIDC token.
-    /// - Parameters:
-    ///   - assertion: The  JSON web token assertion to be exchanged.
-    /// - Returns: An instance of a ``Token``.
-    func jwtBearer(assertion: String) async throws -> Token
+    required init(_ webApp: Application, baseURL: URL, clientId: String, clientSecret: String) {
+        webApp.logger.debug("init Entry")
+        
+        defer {
+            webApp.logger.debug("init Exit")
+        }
+        
+        self.webApp = webApp
+        self.baseURL = baseURL
+        self.clientId = clientId
+        self.clientSecret = clientSecret
+        self.webApp.logger.debug("Base URL for token service is: \(self.baseURL.absoluteString)")
+    }
 }
 
 extension TokenService {
@@ -74,6 +80,34 @@ extension TokenService {
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString)) { request in
             request.headers.contentType = .urlEncodedForm
             request.body = ByteBuffer(string: "client_id=\(self.clientId)&client_secret=\(self.clientSecret)&grant_type=password&username=\(username)&password=\(password)&scope=openid")
+            
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
+        }
+        
+        // Check the response status for 200 range.
+        if !(200...299).contains(response.status.code), let body = response.body {
+            throw Abort(HTTPResponseStatus(statusCode: Int(response.status.code)), reason: String(buffer: body))
+        }
+        
+        // Get the token_type and access_token values.
+        return try response.content.decode(Token.self)
+    }
+    
+    /// Authorize an application client credentials using jwt-bearer grant type returning an OIDC token.
+    /// - Parameters:
+    ///   - assertion: The  JSON web token assertion to be exchanged.
+    /// - Returns: An instance of a ``Token``.
+    func jwtBearer(assertion: String) async throws -> Token {
+        webApp.logger.debug("jwtBearer Entry")
+        
+        defer {
+            webApp.logger.debug("jwtBearer Exit")
+        }
+        
+        let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString)) { request in
+            request.headers.contentType = .urlEncodedForm
+            request.headers.basicAuthorization = BasicAuthorization(username: self.clientId, password: self.clientSecret)
+            request.body = ByteBuffer(string: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&scope=openid&assertion=\(assertion)")
             
             webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
