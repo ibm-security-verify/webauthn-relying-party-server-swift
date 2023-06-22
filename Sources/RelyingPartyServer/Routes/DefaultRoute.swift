@@ -13,6 +13,18 @@ enum Platform: String, Equatable {
     case isva
 }
 
+///  The IBM Security Verify Access authenticated session type.
+enum ISVAAuthSession: String, Equatable {
+    /// Cookies representing an authenticsted session
+    case cookies
+    
+    /// External Authentication Interface (EAI)  headers
+    case eai
+    
+    /// An OAuth token.
+    case token
+}
+
 /// The default route controller that processes requests to manage user sign-up, registration and sign-in processes.
 struct DefaultRoute: RouteCollection {
     private let webAuthnService: WebAuthnService
@@ -21,6 +33,7 @@ struct DefaultRoute: RouteCollection {
     private let apiTokenService: TokenService
     private let webApp: Application
     private let platform: Platform
+    private var authSession: ISVAAuthSession = .token
     
     // Reserved headers.
     private let reservedHeaders = ["content-length",
@@ -65,18 +78,23 @@ struct DefaultRoute: RouteCollection {
             fatalError("User authenticaton related environment variables not set or invalid.")
         }
         
+        if platform == .isva, let authSessionValue = Environment.get("AUTH_SESSION"), let authSession = ISVAAuthSession(rawValue: authSessionValue.lowercased()) {
+            webApp.logger.notice(Logger.Message(stringLiteral: "Server configured for \(authSession.rawValue) as the signin response from \(platform.rawValue)"))
+            self.authSession = authSession
+        }
+        
         // Create instances of services for Token (authorization of users and api clients), users and FIDO WebAuthn.
         switch platform {
         case .isv:
             self.userService = ISVUserService(webApp, baseURL: baseURL)
             self.webAuthnService = ISVWebAuthnService(webApp, baseURL: baseURL, relyingPartyId: relyingPartyId)
-            self.authTokenService = ISVTokenService(webApp, baseURL: baseURL, clientId: authClientId, clientSecret: authClientSecret)
-            self.apiTokenService = ISVTokenService(webApp, baseURL: baseURL, clientId: apiClientId, clientSecret: apiClientSecret)
+            self.authTokenService = TokenService(webApp, baseURL: baseURL.appendingPathComponent("/v1.0/endpoint/default/token"), clientId: authClientId, clientSecret: authClientSecret)
+            self.apiTokenService = TokenService(webApp, baseURL: baseURL.appendingPathComponent("/v1.0/endpoint/default/token"), clientId: apiClientId, clientSecret: apiClientSecret)
         case .isva:
             self.userService = ISVAUserService(webApp, baseURL: baseURL)
             self.webAuthnService = ISVAWebAuthnService(webApp, baseURL: baseURL, relyingPartyId: relyingPartyId)
-            self.authTokenService = ISVATokenService(webApp, baseURL: baseURL, clientId: authClientId, clientSecret: authClientSecret)
-            self.apiTokenService = ISVATokenService(webApp, baseURL: baseURL, clientId: apiClientId, clientSecret: apiClientSecret)
+            self.authTokenService = TokenService(webApp, baseURL: baseURL.appendingPathComponent("/mga/sps/oauth/oauth20/token"), clientId: authClientId, clientSecret: authClientSecret)
+            self.apiTokenService = TokenService(webApp, baseURL: baseURL.appendingPathComponent("/mga/sps/oauth/oauth20/token"), clientId: apiClientId, clientSecret: apiClientSecret)
         }
         
         self.platform = platform
@@ -108,9 +126,10 @@ struct DefaultRoute: RouteCollection {
         // Used to validate an authenticator with a FIDO assertion result.
         route.post("signin", use: signin)
     }
-    
-    // MARK: User Authentication, Sign-up and Validation
-    
+}
+
+// MARK: Endpoint Handlers
+extension DefaultRoute {
     /// The user authentication request.
     /// - Parameters:
     ///   - req: Represents an HTTP request.
@@ -172,7 +191,7 @@ struct DefaultRoute: RouteCollection {
             // Calculate the cache expiry in seconds for the OTP transaction.
             let seconds = Int(result.expiry.timeIntervalSinceNow)
             req.logger.info("Caching OTP \(result.transactionId). Set to expire in \(seconds) seconds.")
-        
+            
             try await req.cache.set(result.transactionId, to: user, expiresIn: CacheExpirationTime.seconds(seconds))
             
             return result
@@ -205,7 +224,7 @@ struct DefaultRoute: RouteCollection {
         // Validate the request data.
         try OTPVerification.validate(content: req)
         let validation = try req.content.decode(OTPVerification.self)
-
+        
         // Make sure the OTP transaction still exists in the cache.
         guard let user = try await req.cache.get(validation.transactionId, as: UserSignUp.self) else {
             req.logger.info("Cached \(validation.transactionId) OTP has expired.")
@@ -229,8 +248,6 @@ struct DefaultRoute: RouteCollection {
             throw error
         }
     }
-    
-    // MARK: FIDO2 Device Registration and Verification (sign-in)
     
     /// A request to generate a WebAuthn challenge.
     /// - Parameters:
@@ -357,25 +374,19 @@ struct DefaultRoute: RouteCollection {
         do {
             let result = try await webAuthnService.verifyCredential(token: try await token, clientDataJSON: verification.clientDataJSON, authenticatorData: verification.authenticatorData, credentialId: verification.credentialId, signature: verification.signature, userHandle: verification.userHandle)
             
-            // Attempt to create a token from the response payload.
-            if let data = result.body, let token = try await parseSigninResult(Data(buffer: data)) {
-                // Convert the token to JSON.
-                let json = try JSONEncoder().encode(token)
-                
-                return Response(status: .ok, headers: HTTPHeaders([("Content-type", "application/json")]), body: .init(data: json))
+            // Default behaviour is to create a token from the response payload.
+            if let response = try await createSigninTokenResponse(result) {
+               return response
             }
             
-            // No token created, return the set-cookie response headers as the body.
-            if let cookies = result.headers.setCookie {
-                let values = cookies.all.reduce(into: [String: String]()) {
-                    $0[$1.key] = $1.value.string
+            // For ISVA, use the AUTH_SESSION header to create cookie headers or EAI headers as the response.
+            if self.platform == .isva {
+                if self.authSession == .cookies {
+                    return await createSigninCookieResponse(result)
                 }
-                
-                let items: [String: [String: String]] = ["items": values]
-                
-                // Convert the dictionary to JSON.
-                let json = try JSONEncoder().encode(items)
-                return Response(status: .ok, headers: HTTPHeaders([("Content-type", "application/json")]), body: .init(data: json))
+                else if self.authSession == .eai {
+                    return try await createSigninEAIResponse(result)
+                }
             }
             
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "The response from \(self.platform.rawValue) did not contain an OIDC token or an authenticated session cookie(s).  Please check your \(self.platform.rawValue) environment configuration.")
@@ -385,34 +396,120 @@ struct DefaultRoute: RouteCollection {
             throw error
         }
     }
-    
-    // MARK: Admin
-    
-    /// Parse the assertion result data from the FIDO2 endpoint and construct an OAuth token.
-    /// - Parameters:
-    ///   - data: A JSON payload that contains the successful verification.
-    /// - Returns: A ``Token`` representing the authenticated user.
-    func parseSigninResult(_ data: Data) async throws -> Token? {
-        switch self.authTokenService {
-        // For ISVA, the token response is based on the response including "access_token" in payload dervied from an ISVA mapping rule
-        case is ISVATokenService:
-            guard let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let attributes = json["attributes"] as? [String: Any], let responseData = attributes["responseData"] as? [String: Any], let accessToken = responseData["access_token"] as? String else {
+}
 
+// MARK: Helper Methods
+extension DefaultRoute {
+    /// Parse the assertion result from the FIDO2 endpoint and construct a `Response` with an OAuth token body.
+    /// - Parameters:
+    ///   - response: The `ClientResponse` from the FIDO service.
+    /// - Returns: A ``Response`` otherwise `nil` representing the token data was not available.
+    func createSigninTokenResponse(_ response: ClientResponse) async throws -> Response? {
+        webApp.logger.debug("createSigninTokenResponse Entry")
+        
+        defer {
+            webApp.logger.debug("createSigninTokenResponse Exit")
+        }
+        
+        guard let body = response.body else {
+            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to construct token from repsonse body data.")
+        }
+        
+        let data = Data(buffer: body)
+        
+        switch self.platform {
+        // For ISVA, the token response is based on the response including "access_token" in payload dervied from an ISVA mapping rule
+        case .isva:
+            guard let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let attributes = jsonData["attributes"] as? [String: Any], let responseData = attributes["responseData"] as? [String: Any], let accessToken = responseData["access_token"] as? String else {
+                
                 webApp.logger.info("Unable to parse the ISVA assertion data from the FIDO2 assertion/result response.  Check the FIDO2 mediator Javascript.")
                 return nil
             }
+
+            let token = Token(accessToken: accessToken)
+            let json = try JSONEncoder().encode(token)
             
-            return Token(accessToken: accessToken)
+            return Response(status: .ok, headers: HTTPHeaders([("Content-type", "application/json")]), body: .init(data: json))
+
         // For ISV, the JWT is created and validated, so we can just return the token.
-        case is ISVTokenService:
-            guard let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let assertion = json["assertion"] as? String else {
+        case .isv:
+            guard let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let assertion = jsonData["assertion"] as? String else {
                 throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse the ISV assertion data from the FIDO2 assertion/result response.")
             }
             
-            return try await authTokenService.jwtBearer(assertion: assertion)
-        default:
-            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse the assertion data from the FIDO2 assertion/result response.")
+            let token = try await authTokenService.jwtBearer(assertion: assertion)
+            let json = try JSONEncoder().encode(token)
+            
+            return Response(status: .ok, headers: HTTPHeaders([("Content-type", "application/json")]), body: .init(data: json))
         }
+    }
+    
+    /// Parse the assertion result from the FIDO2 endpoint and construct a `Response` with the headers and body preserved.
+    /// - Parameters:
+    ///   - response: The `ClientResponse` from the FIDO service.
+    /// - Returns: A ``Response``.
+    func createSigninCookieResponse(_ response: ClientResponse) async -> Response {
+        webApp.logger.debug("createSigninCookieResponse Entry")
+        
+        defer {
+            webApp.logger.debug("createSigninCookieResponse Exit")
+        }
+        
+        if let body = response.body {
+            return Response(status: .ok, headers: response.headers, body: .init(data: Data(buffer: body)))
+        }
+        
+        if let cookies = response.headers.setCookie {
+            webApp.logger.debug("Cookie headers:\n\(cookies)")
+        }
+        
+        return Response(status: .ok, headers: response.headers)
+    }
+    
+    /// Parse the assertion result from the FIDO2 endpoint and construct a `Response` with the EAI specific headers.
+    /// - Parameters:
+    ///   - response: The `ClientResponse` from the FIDO service.
+    /// - Returns: A ``Response``.
+    func createSigninEAIResponse(_ response: ClientResponse) async throws -> Response {
+        webApp.logger.debug("createSigninEAIResponse Entry")
+        
+        defer {
+            webApp.logger.debug("createSigninEAIResponse Exit")
+        }
+        
+        guard let body = response.body else {
+            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to construct EAI data from repsonse body data.")
+        }
+        
+        let data = Data(buffer: body)
+        
+        guard let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let user = jsonData["user"] as? [String: Any], let username = user["name"] as? String, let attributes = jsonData["attributes"] as? [String: Any], let credentialData = attributes["credentialData"] as? [String: Any] else {
+            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse the ISVA assertion data from the FIDO2 assertion/result response.  Check the FIDO2 mediator Javascript.")
+        }
+        
+        // Create the EAI headers
+        var headers = HTTPHeaders()
+        headers.add(name: "am-eai-user-id", value: username)
+        headers.add(name: "am-eai-xattrs", value: credentialData.keys.joined(separator: ","))
+        
+        // Loop through the credentialData
+        credentialData.forEach {
+            let name = $0.key
+            
+            if let value = $0.value as? [String] {
+                value.forEach {
+                    headers.add(name: name, value: $0)
+                }
+            }
+            
+            if let value = $0.value as? String {
+                headers.add(name: name, value: value)
+            }
+        }
+        
+        webApp.logger.debug("EAI headers:\n\(headers)")
+        
+        return Response(status: .noContent, headers: headers)
     }
     
     /// The ``Token`` for authorizing requests to back-end services.
