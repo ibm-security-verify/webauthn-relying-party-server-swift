@@ -28,8 +28,16 @@ class ISVAWebAuthnService: WebAuthnService {
             webApp.logger.debug("init Exit")
         }
         
+        webApp.logger.debug("init Entry")
+        
+        defer {
+            webApp.logger.debug("init Exit")
+        }
+        
         self.webApp = webApp
         self.baseURL = baseURL.appendingPathComponent("/mga/sps/fido2/\(relyingPartyId)")
+        
+        webApp.logger.debug("Base URL for FIDO2 is: \(self.baseURL.absoluteString)")
         
         webApp.logger.debug("Base URL for FIDO2 is: \(self.baseURL.absoluteString)")
     }
@@ -41,26 +49,46 @@ class ISVAWebAuthnService: WebAuthnService {
             webApp.logger.debug("generateChallenge Exit")
         }
         
+        var username = ""
+        
+        // For attestation, the IV-USER header needs to exist.
+        if type == .attestation {
+            if let headers, let key = headers.keys.first(where: { $0.compare("iv-user", options: .caseInsensitive) == .orderedSame }), let value = headers[key] {
+                username = value
+            }
+            else {
+                throw Abort(HTTPResponseStatus(statusCode: 400), reason: "An attestation challenge requires iv-user in the request headers.")
+            }
+        }
+        
         // Set the JSON request body.
         var payload = "{"
+        var payload = "{"
         if let displayName = displayName {
-            payload += "\"displayName\": \"\(displayName)\""
+            payload += "\"displayName\": \"\(displayName)\","
         }
         
-        if type == .assertion {
-            payload += "\"username\": \"\""
-        }
-        
+        payload += "\"username\": \"\(username)\""
         payload += "}"
         
         webApp.logger.debug("Request body:\n\(payload)")
         
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/\(type.rawValue)/options")) { request in
-            
             request.body = ByteBuffer(string: payload)
             request.headers.contentType = .json
             request.headers.add(name: "Accept", value: HTTPMediaType.json.serialize())
             request.headers.bearerAuthorization = BearerAuthorization(token: token.accessToken)
+            
+            // Add additional headers if available.
+            if let headers = headers {
+                headers.forEach { item in
+                    if !request.headers.contains(name: item.key) {
+                        request.headers.add(name: item.key, value: item.value)
+                    }
+                }
+            }
+            
+            webApp.logger.debug("Request headers:\n\(request.headers)")
             
             // Add additional headers if available.
             if let headers = headers {
@@ -84,6 +112,7 @@ class ISVAWebAuthnService: WebAuthnService {
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain \(type.rawValue) response data.")
         }
         
+        webApp.logger.debug("Response body:\n\(String(buffer: body))")
         webApp.logger.debug("Response body:\n\(String(buffer: body))")
         
         return String(buffer: body)

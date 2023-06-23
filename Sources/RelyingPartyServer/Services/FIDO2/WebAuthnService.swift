@@ -29,17 +29,28 @@ protocol WebAuthnService {
     ///   - userHandle: The userId provided when creating this credential.
     /// - Returns: The ``ClientResponse`` from the underlying request.
     func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> ClientResponse
+    /// - Returns: The ``ClientResponse`` from the underlying request.
+    func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> ClientResponse
     
     /// Initiate a FIDO verification with authentication preferences for the challenge.
     /// - Parameters:
     ///   - token: The ``Token`` for authorizing requests to back-end services.
     ///   - displayName: The display name used by the authenticator for UI representation.
     ///   - headers: A dictionary that contains the additional custom header request values.
+    ///   - headers: A dictionary that contains the additional custom header request values.
     /// - Returns: A string representing the public key options for attestation or assertion.
+    func generateChallenge(token: Token, displayName: String?, type: ChallengeType, headers: [String: String]?) async throws -> String
     func generateChallenge(token: Token, displayName: String?, type: ChallengeType, headers: [String: String]?) async throws -> String
 }
 
 extension WebAuthnService {
+    func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> ClientResponse {
+        webApp.logger.debug("verifyCredential Entry")
+        
+        defer {
+            webApp.logger.debug("verifyCredential Exit")
+        }
+        
     func verifyCredential(token: Token, clientDataJSON: String, authenticatorData: String, credentialId: String, signature: String, userHandle: String) async throws -> ClientResponse {
         webApp.logger.debug("verifyCredential Entry")
         
@@ -67,6 +78,8 @@ extension WebAuthnService {
             """)
             
             webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
+            
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
         
         // Check the response status for 200 range.
@@ -74,6 +87,7 @@ extension WebAuthnService {
             throw Abort(HTTPResponseStatus(statusCode: Int(response.status.code)), reason: String(buffer: body))
         }
         
+        return response
         return response
     }
     
@@ -84,6 +98,13 @@ extension WebAuthnService {
     ///   - clientDataJSON: The base64Url-encoded clientDataJSON that is received from the WebAuthn client.
     ///   - attestationObject: The base64Url-encoded attestationObject that is received from the WebAuthn client.
     ///   - credentialId: The credential identifier that is received from the WebAuthn client.
+    func createCredential(token: Token, nickname: String, clientDataJSON: String, attestationObject: String, credentialId: String, headers: [String: String]?) async throws {
+        webApp.logger.debug("createCredential Entry")
+        
+        defer {
+            webApp.logger.debug("createCredential Exit")
+        }
+        
     func createCredential(token: Token, nickname: String, clientDataJSON: String, attestationObject: String, credentialId: String, headers: [String: String]?) async throws {
         webApp.logger.debug("createCredential Entry")
         
@@ -122,6 +143,23 @@ extension WebAuthnService {
             }
             
             webApp.logger.debug("Request headers:\n\(request.headers)")
+            
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
+            
+            request.headers.contentType = .json
+            request.headers.add(name: "Accept", value: HTTPMediaType.json.serialize())
+            request.headers.bearerAuthorization = BearerAuthorization(token: token.accessToken)
+            
+            // Add additional headers if available.
+            if let headers = headers {
+                headers.forEach { item in
+                    if !request.headers.contains(name: item.key) {
+                        request.headers.add(name: item.key, value: item.value)
+                    }
+                }
+            }
+            
+            webApp.logger.debug("Request headers:\n\(request.headers)")
         }
         
         // Check the response status for 200 range.
@@ -137,21 +175,42 @@ extension WebAuthnService {
             webApp.logger.debug("generateChallenge Exit")
         }
         
+    func generateChallenge(token: Token, displayName: String?, type: ChallengeType, headers: [String: String]? = nil) async throws -> String {
+        webApp.logger.debug("generateChallenge Entry")
+        
+        defer {
+            webApp.logger.debug("generateChallenge Exit")
+        }
+        
         // Set the JSON request body.
+        var payload = "{"
         var payload = "{"
         if let displayName = displayName {
             payload += "\"displayName\": \"\(displayName)\""
+            payload += "\"displayName\": \"\(displayName)\""
         }
+        payload += "}"
         payload += "}"
         
         webApp.logger.debug("Request body:\n\(payload)")
+        webApp.logger.debug("Request body:\n\(payload)")
         
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString + "/\(type.rawValue)/options")) { request in
-            
             request.body = ByteBuffer(string: payload)
             request.headers.contentType = .json
             request.headers.add(name: "Accept", value: HTTPMediaType.json.serialize())
             request.headers.bearerAuthorization = BearerAuthorization(token: token.accessToken)
+            
+            // Add additional headers if available.
+            if let headers = headers {
+                headers.forEach { item in
+                    if !request.headers.contains(name: item.key) {
+                        request.headers.add(name: item.key, value: item.value)
+                    }
+                }
+            }
+            
+            webApp.logger.debug("Request headers:\n\(request.headers)")
             
             // Add additional headers if available.
             if let headers = headers {
@@ -175,6 +234,7 @@ extension WebAuthnService {
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain \(type.rawValue) response data.")
         }
         
+        webApp.logger.debug("Response body:\n\(String(buffer: body))")
         webApp.logger.debug("Response body:\n\(String(buffer: body))")
         
         return String(buffer: body)

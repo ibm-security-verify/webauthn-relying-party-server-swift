@@ -72,6 +72,20 @@ The platform flag indicates if the relying party server is IBM Security Verify (
 PLATFORM=ISV
 ```
 
+#### `AUTH_SESSION`
+
+(OPTIONAL) When `PLATFORM=ISVA`, the `AUTH_SESSION` allows the relying party server to parse JSON data from the `/v1/signin` response to generate an authenticated session.  The availble values are:
+
+| Name | Description |
+|---|---|
+| EAI | Requires the FIDO2 mediator to provide additional credential information in `credentialData` JSON payload. |
+| TOKEN | This is the default value if `AUTH_SESSION` has not (or an invalid value) been provided.  For a token to be returned, it requires the FIDO2 mediator to inject `access_token` into the `responseData` element of the JSON payload. |
+| COOKIE | Returns the response from the FIDO `assertion/result` endpoint back to the calling client. |
+
+> See [IBM Security Verify Access FIDO Mediation](https://www.ibm.com/docs/en/sva/10.0.0?topic=support-fido2-mediation) for more information.
+
+<br/>
+
 #### `APPLE_APP_SITE_ASSOC`
 
 This is a string to represent the JSON for Apple to establish a secure association between domains and your app. The following JSON code represent the contents of a simple association:
@@ -223,7 +237,7 @@ Used when the user has an existing account with a password executing an ROPC req
 
 ```
 {
-    "email": "anne_johnson@icloud.com",
+    "username": "anne_johnson@icloud.com",
     "password": "a1b2c3d4"
 }
 ```
@@ -380,7 +394,8 @@ Validates a public-key credential for a user with an existing registration.  Bel
     "clientDataJSON": "eyUyBg8Li8GH...",
     "authenticatorData": "o2M884Yt0a3B7...",
     "credentialId": "VGhpcyBpcyBh...",
-    "signature": "OP84jBpcyB...
+    "signature": "OP84jBpcyB...",
+    "userHandle": "ePGatpTNR..."
 }
 ```
 
