@@ -28,16 +28,8 @@ class ISVAWebAuthnService: WebAuthnService {
             webApp.logger.debug("init Exit")
         }
         
-        webApp.logger.debug("init Entry")
-        
-        defer {
-            webApp.logger.debug("init Exit")
-        }
-        
         self.webApp = webApp
         self.baseURL = baseURL.appendingPathComponent("/mga/sps/fido2/\(relyingPartyId)")
-        
-        webApp.logger.debug("Base URL for FIDO2 is: \(self.baseURL.absoluteString)")
         
         webApp.logger.debug("Base URL for FIDO2 is: \(self.baseURL.absoluteString)")
     }
@@ -62,7 +54,6 @@ class ISVAWebAuthnService: WebAuthnService {
         }
         
         // Set the JSON request body.
-        var payload = "{"
         var payload = "{"
         if let displayName = displayName {
             payload += "\"displayName\": \"\(displayName)\","
@@ -89,17 +80,6 @@ class ISVAWebAuthnService: WebAuthnService {
             }
             
             webApp.logger.debug("Request headers:\n\(request.headers)")
-            
-            // Add additional headers if available.
-            if let headers = headers {
-                headers.forEach { item in
-                    if !request.headers.contains(name: item.key) {
-                        request.headers.add(name: item.key, value: item.value)
-                    }
-                }
-            }
-            
-            webApp.logger.debug("Request headers:\n\(request.headers)")
         }
         
         // Check the response status for 200 range.
@@ -112,7 +92,6 @@ class ISVAWebAuthnService: WebAuthnService {
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to obtain \(type.rawValue) response data.")
         }
         
-        webApp.logger.debug("Response body:\n\(String(buffer: body))")
         webApp.logger.debug("Response body:\n\(String(buffer: body))")
         
         return String(buffer: body)
