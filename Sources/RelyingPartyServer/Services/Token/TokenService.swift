@@ -49,9 +49,17 @@ extension TokenService {
             webApp.logger.debug("clientCredentials Exit")
         }
         
+        webApp.logger.debug("clientCredentials Entry")
+        
+        defer {
+            webApp.logger.debug("clientCredentials Exit")
+        }
+        
         let response = try await self.webApp.client.post(URI(stringLiteral: self.baseURL.absoluteString)) { request in
             request.headers.contentType = .urlEncodedForm
             request.body = ByteBuffer(string: "client_id=\(self.clientId)&client_secret=\(self.clientSecret)&grant_type=client_credentials")
+            
+            webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
             
             webApp.logger.debug("Request body:\n\(String(buffer: request.body!))")
         }
@@ -71,6 +79,12 @@ extension TokenService {
     ///   - password: The users' password.
     /// - Returns: An instance of a ``Token``.
     func password(username: String, password: String) async throws -> Token {
+        webApp.logger.debug("password Entry")
+        
+        defer {
+            webApp.logger.debug("password Exit")
+        }
+        
         webApp.logger.debug("password Entry")
         
         defer {

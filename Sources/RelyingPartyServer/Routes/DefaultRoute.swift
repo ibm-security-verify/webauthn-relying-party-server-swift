@@ -55,6 +55,12 @@ struct DefaultRoute: RouteCollection {
             webApp.logger.debug("init Exit")
         }
         
+        webApp.logger.debug("init Entry")
+        
+        defer {
+            webApp.logger.debug("init Exit")
+        }
+        
         // Load the base URL for interacting with the services.
         guard let platformValue = Environment.get("PLATFORM"), let platform = Platform(rawValue: platformValue.lowercased()) else {
             fatalError("The platform environment variable not set or invalid. Valid PLATFORM values are 'ISV' or 'ISVA'.")
@@ -73,6 +79,7 @@ struct DefaultRoute: RouteCollection {
             fatalError("FIDO2 related environment variables not set or invalid.")
         }
         
+        // If not provided, then the /authenticate, /signup and /validate endpoints will return a 400 Bad Request response.
         // If not provided, then the /authenticate, /signup and /validate endpoints will return a 400 Bad Request response.
         guard let authClientId = Environment.get("AUTH_CLIENT_ID"), let authClientSecret = Environment.get("AUTH_CLIENT_SECRET") else {
             fatalError("User authenticaton related environment variables not set or invalid.")
@@ -100,6 +107,9 @@ struct DefaultRoute: RouteCollection {
         self.platform = platform
         self.webApp = webApp
         
+        self.platform = platform
+        self.webApp = webApp
+        
         self.webApp.logger.notice("Configured for \(platform.rawValue.uppercased())")
     }
     
@@ -119,6 +129,7 @@ struct DefaultRoute: RouteCollection {
         
         // Used to generate a FIDO challenge for attestation and assertion.
         route.post("challenge", use: challenge)
+        
         
         // Used to register an authenticatpr with a FIDO attestation result.
         route.post("register", use: register)
@@ -143,6 +154,12 @@ extension DefaultRoute {
     /// }
     /// ```
     func authenticate(_ req: Request) async throws -> Token {
+        webApp.logger.debug("authenticate Entry")
+        
+        defer {
+            webApp.logger.debug("authenticate Exit")
+        }
+        
         webApp.logger.debug("authenticate Entry")
         
         defer {
@@ -175,6 +192,12 @@ extension DefaultRoute {
     /// }
     /// ```
     func signup(_ req: Request) async throws -> OTPChallenge {
+        webApp.logger.debug("signup Entry")
+        
+        defer {
+            webApp.logger.debug("signup Exit")
+        }
+        
         webApp.logger.debug("signup Entry")
         
         defer {
@@ -215,6 +238,12 @@ extension DefaultRoute {
     /// }
     /// ```
     func validate(_ req: Request) async throws -> Token {
+        webApp.logger.debug("validate Entry")
+        
+        defer {
+            webApp.logger.debug("validate Exit")
+        }
+        
         webApp.logger.debug("validate Entry")
         
         defer {
@@ -272,6 +301,12 @@ extension DefaultRoute {
             webApp.logger.debug("challenge Exit")
         }
         
+        webApp.logger.debug("challenge Entry")
+        
+        defer {
+            webApp.logger.debug("challenge Exit")
+        }
+        
         // Validate the request data.
         let challenge = try req.content.decode(ChallengeRequest.self)
         
@@ -288,6 +323,11 @@ extension DefaultRoute {
         req.logger.info("Request for \(challenge.type) challenge.")
         
         do {
+            // Remove the reserved headers from the incoming request headers.
+            let headers = req.headers.filter(({ !reservedHeaders.contains($0.name.lowercased()) }))
+            
+            let body = try await webAuthnService.generateChallenge(token: token, displayName: displayName, type: challenge.type,
+                                                                   headers: headers.reduce(into: [String: String]()) { $0[$1.name] = $1.value })
             // Remove the reserved headers from the incoming request headers.
             let headers = req.headers.filter(({ !reservedHeaders.contains($0.name.lowercased()) }))
             
@@ -320,6 +360,12 @@ extension DefaultRoute {
             webApp.logger.debug("register Exit")
         }
         
+        webApp.logger.debug("register Entry")
+        
+        defer {
+            webApp.logger.debug("register Exit")
+        }
+        
         // Check if the bearer header is present, it not throw a 401.
         guard let bearer = req.headers.bearerAuthorization else {
             throw Abort(.unauthorized)
@@ -333,6 +379,10 @@ extension DefaultRoute {
         let registration = try req.content.decode(FIDO2Registration.self)
         
         do {
+            // Remove the reserved headers from the incoming request headers.
+            let headers = req.headers.filter(({ !reservedHeaders.contains($0.name.lowercased()) }))
+            
+            try await webAuthnService.createCredential(token: token, nickname: registration.nickname, clientDataJSON: registration.clientDataJSON, attestationObject: registration.attestationObject, credentialId: registration.credentialId, headers: headers.reduce(into: [String: String]()) { $0[$1.name] = $1.value })
             // Remove the reserved headers from the incoming request headers.
             let headers = req.headers.filter(({ !reservedHeaders.contains($0.name.lowercased()) }))
             
@@ -367,6 +417,13 @@ extension DefaultRoute {
             webApp.logger.debug("signin Exit")
         }
         
+    func signin(_ req: Request) async throws -> Response {
+        webApp.logger.debug("signin Entry")
+        
+        defer {
+            webApp.logger.debug("signin Exit")
+        }
+        
         // Validate the request data.
         try FIDO2Verification.validate(content: req)
         let verification = try req.content.decode(FIDO2Verification.self)
@@ -389,6 +446,7 @@ extension DefaultRoute {
                 }
             }
             
+            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "The response from \(self.platform.rawValue) did not contain an OIDC token or an authenticated session cookie(s).  Please check your \(self.platform.rawValue) environment configuration.")
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "The response from \(self.platform.rawValue) did not contain an OIDC token or an authenticated session cookie(s).  Please check your \(self.platform.rawValue) environment configuration.")
         }
         catch let error {
@@ -515,6 +573,12 @@ extension DefaultRoute {
     /// The ``Token`` for authorizing requests to back-end services.
     var token: Token {
         get async throws {
+            webApp.logger.debug("token Entry")
+            
+            defer {
+                webApp.logger.debug("token Exit")
+            }
+            
             webApp.logger.debug("token Entry")
             
             defer {
