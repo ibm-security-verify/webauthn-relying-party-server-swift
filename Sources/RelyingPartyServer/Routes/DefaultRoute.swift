@@ -15,7 +15,7 @@ enum Platform: String, Equatable {
 
 ///  The IBM Security Verify Access authenticated session type.
 enum ISVAAuthSession: String, Equatable {
-    /// Cookies representing an authenticsted session
+    /// Cookies representing an authenticated session
     case cookies
     
     /// External Authentication Interface (EAI)  headers
@@ -75,11 +75,11 @@ struct DefaultRoute: RouteCollection {
         
         // If not provided, then the /authenticate, /signup and /validate endpoints will return a 400 Bad Request response.
         guard let authClientId = Environment.get("AUTH_CLIENT_ID"), let authClientSecret = Environment.get("AUTH_CLIENT_SECRET") else {
-            fatalError("User authenticaton related environment variables not set or invalid.")
+            fatalError("User authentication related environment variables not set or invalid.")
         }
         
         if platform == .isva, let authSessionValue = Environment.get("AUTH_SESSION"), let authSession = ISVAAuthSession(rawValue: authSessionValue.lowercased()) {
-            webApp.logger.notice(Logger.Message(stringLiteral: "Server configured for \(authSession.rawValue) as the signin response from \(platform.rawValue)"))
+            webApp.logger.notice(Logger.Message(stringLiteral: "Server configured for \(authSession.rawValue) as the sign-in response from \(platform.rawValue)"))
             self.authSession = authSession
         }
         
@@ -120,7 +120,7 @@ struct DefaultRoute: RouteCollection {
         // Used to generate a FIDO challenge for attestation and assertion.
         route.post("challenge", use: challenge)
         
-        // Used to register an authenticatpr with a FIDO attestation result.
+        // Used to register an authenticator with a FIDO attestation result.
         route.post("register", use: register)
         
         // Used to validate an authenticator with a FIDO assertion result.
@@ -228,7 +228,7 @@ extension DefaultRoute {
         // Make sure the OTP transaction still exists in the cache.
         guard let user = try await req.cache.get(validation.transactionId, as: UserSignUp.self) else {
             req.logger.info("Cached \(validation.transactionId) OTP has expired.")
-            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse one-time password identifer.")
+            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse one-time password identifier.")
         }
         
         do {
@@ -321,13 +321,12 @@ extension DefaultRoute {
             webApp.logger.debug("register Exit")
         }
         
-        // Check if the bearer header is present, it not throw a 401.
-        guard let bearer = req.headers.bearerAuthorization else {
-            throw Abort(.unauthorized)
-        }
+        // Default to the service token.
+        var token = try await token
         
-        // Create the token.
-        let token = Token(accessToken: bearer.token)
+        if let bearer = req.headers.bearerAuthorization {
+            token = Token(accessToken: bearer.token)
+        }
         
         // Validate the request data.
         try FIDO2Registration.validate(content: req)
@@ -336,6 +335,9 @@ extension DefaultRoute {
         do {
             // Remove the reserved headers from the incoming request headers.
             let headers = req.headers.filter(({ !reservedHeaders.contains($0.name.lowercased()) }))
+            
+            req.logger.debug("createCredential body: \(req.body)")
+            req.logger.debug("createCredential headers: \(req.headers)")
             
             try await webAuthnService.createCredential(token: token, nickname: registration.nickname, clientDataJSON: registration.clientDataJSON, attestationObject: registration.attestationObject, credentialId: registration.credentialId, headers: headers.reduce(into: [String: String]()) { $0[$1.name] = $1.value })
         }
@@ -413,13 +415,13 @@ extension DefaultRoute {
         }
         
         guard let body = response.body else {
-            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to construct token from repsonse body data.")
+            throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to construct token from response body data.")
         }
         
         let data = Data(buffer: body)
         
         switch self.platform {
-        // For ISVA, the token response is based on the response including "access_token" in payload dervied from an ISVA mapping rule
+        // For ISVA, the token response is based on the response including "access_token" in payload derived from an ISVA mapping rule
         case .isva:
             guard let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let attributes = jsonData["attributes"] as? [String: Any], let responseData = attributes["responseData"] as? [String: Any], let accessToken = responseData["access_token"] as? String else {
                 
@@ -484,27 +486,41 @@ extension DefaultRoute {
         
         let data = Data(buffer: body)
         
-        guard let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let user = jsonData["user"] as? [String: Any], let username = user["name"] as? String, let attributes = jsonData["attributes"] as? [String: Any], let credentialData = attributes["credentialData"] as? [String: Any] else {
+        guard let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any], let user = jsonData["user"] as? [String: Any], let username = user["name"] as? String, let attributes = jsonData["attributes"] as? [String: Any], var credentialData = attributes["credentialData"] as? [String: Any] else {
             throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Unable to parse the ISVA assertion data from the FIDO2 assertion/result response.  Check the FIDO2 mediator Javascript.")
         }
         
         // Create the EAI headers
         var headers = HTTPHeaders()
         headers.add(name: "am-eai-user-id", value: username)
+        
+        // Create EAI headers not part of am-eai-xattrs
+        if let key = credentialData.keys.first(where: { $0.compare("am-eai-auth-level", options: .caseInsensitive) == .orderedSame }), let value = credentialData[key] {
+            headers.add(name: "am-eai-auth-level", value: String(describing: value))
+            credentialData.removeValue(forKey: "am-eai-auth-level")
+        }
+        
+        if let key = credentialData.keys.first(where: { $0.compare("am-eai-flags", options: .caseInsensitive) == .orderedSame }), let value = credentialData[key] {
+            headers.add(name: "am-eai-flags", value: String(describing: value))
+            credentialData.removeValue(forKey: "am-eai-flags")
+        }
+        
         headers.add(name: "am-eai-xattrs", value: credentialData.keys.joined(separator: ","))
         
         // Loop through the credentialData
         credentialData.forEach {
             let name = $0.key
             
-            if let value = $0.value as? [String] {
-                value.forEach {
-                    headers.add(name: name, value: $0)
+            if name.lowercased() != "" {
+                if let value = $0.value as? [String] {
+                    value.forEach {
+                        headers.add(name: name, value: $0)
+                    }
                 }
-            }
-            
-            if let value = $0.value as? String {
-                headers.add(name: name, value: value)
+                
+                if let value = $0.value as? String {
+                    headers.add(name: name, value: value)
+                }
             }
         }
         
