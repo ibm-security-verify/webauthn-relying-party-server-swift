@@ -57,6 +57,11 @@ The resource links in the prerequisites explain and demonstrate how you create a
     python3 starter-kit.py -f config.json
     ```
 
+    > NOTE: On an MAC M1 pre-fix the Python command as:
+    > ```
+    > arch -arm64 python3 starter-kit.py -f config.json
+    > ```
+
     The output of `starter-kit.py` is an `.env.env` file which can be used to configure the relying party server environment variables.  The `.env` file will be located in the same folder where `starter-lit.py` is executed from.
 
 
@@ -85,6 +90,7 @@ PLATFORM=ISV
 > See [IBM Security Verify Access FIDO Mediation](https://www.ibm.com/docs/en/sva/10.0.0?topic=support-fido2-mediation) for more information.
 
 <br/>
+
 
 #### `APPLE_APP_SITE_ASSOC`
 
@@ -229,6 +235,10 @@ ROOT_CA=t4Ck1jbktkQT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0=
 #### `GET /.well-known/apple-app-site-association`
 
 Returns the JSON content representing the `APPLE_APP_SITE_ASSOC` environment variable.
+
+#### `GET /.well-known/assetlinks.json`
+
+Returns the JSON content representing the `GOOGLE_ASSET_LINKS` environment variable.
 
 
 #### `POST /v1/authenticate`
