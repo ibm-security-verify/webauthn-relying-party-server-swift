@@ -21,7 +21,7 @@ Le serveur de confiance a besoin de plusieurs variables d'environnement pour êt
 
 #### `PLATFORM`
 
-L'indicateur de plate-forme indique si le serveur de la partie utilisatrice est IBM Security Verify (ISV) ou IBM Security Verify Access (ISVA). Par exemple :
+L'indicateur de plate-forme indique si le serveur de la partie utilisatrice est IBM Verify (ISV) ou IBM Verify Access (ISVA). Par exemple :
 ```
 PLATFORM=ISV
 ```
@@ -54,7 +54,7 @@ Pour plus d'informations, voir [Support des domaines associés](https://develope
 
 #### `FIDO2_RELYING_PARTY_ID`
 
-Il s'agit de l'identifiant unique (UUID) créé lors de la création du service FIDO2 dans IBM Security Verify.  Par exemple :
+Il s'agit de l'identifiant unique (UUID) créé lors de la création du service FIDO2 dans IBM Verify.  Par exemple :
 ```
 FIDO2_RELYING_PARTY_ID=634cd513-dc6a-5e28-06fg-40c3dc81a79e
 ```
@@ -112,7 +112,7 @@ Dans le cas de l'utilisation de l'image publique de Docker, suivez le guide ci-d
 - Cloner le référentiel de la partie dépendante.  Exécutez cette commande dans une fenêtre Terminal :
 
    ```
-   git clone https://github.com/ibm-security-verify/webauthn-relying-party-server.git
+   git clone https://github.com/ibm-verify/webauthn-relying-party-server.git
    ```
    ```
    cd `openshift-deployment`

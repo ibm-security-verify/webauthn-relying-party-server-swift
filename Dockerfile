@@ -1,4 +1,4 @@
-# Copyright contributors to the IBM Security Verify WebAuthn Relying Party Server for Swift
+# Copyright contributors to the IBM Verify WebAuthn Relying Party Server for Swift
 
 # ================================
 # Build image

@@ -1,7 +1,7 @@
-# IBM Security Verify WebAuthn Relying Party Server pour Swift
+# IBM Verify WebAuthn Relying Party Server pour Swift
 
 
-IBM Security Verify WebAuthn Relying Party Server for Swift est basé sur le framework [Vapor](https://vapor.codes) et expose des points d'extrémité qui mandatent les requêtes OAuth et FIDO2 vers IBM Security Verify à partir de clients web et mobiles.
+IBM Verify WebAuthn Relying Party Server for Swift est basé sur le framework [Vapor](https://vapor.codes) et expose des points d'extrémité qui mandatent les requêtes OAuth et FIDO2 vers IBM Verify à partir de clients web et mobiles.
 
 ### Mise en route
 
@@ -28,7 +28,7 @@ Les liens de ressources dans les conditions préalables expliquent et démontren
 - Cloner le référentiel de la partie dépendante.  Exécutez cette commande dans une fenêtre Terminal :
 
    ```
-   git clone https://github.com/ibm-security-verify/webauthn-relying-party-server.git
+   git clone https://github.com/ibm-verify/webauthn-relying-party-server.git
    ```
 
 
@@ -72,7 +72,7 @@ Le serveur de confiance a besoin de plusieurs variables d'environnement pour êt
 
 #### `PLATFORM`
 
-L'indicateur de plate-forme indique si le serveur de la partie utilisatrice est IBM Security Verify (ISV) ou IBM Security Verify Access (ISVA). Par exemple :
+L'indicateur de plate-forme indique si le serveur de la partie utilisatrice est IBM Verify (ISV) ou IBM Verify Access (ISVA). Par exemple :
 ```
 PLATFORM=ISV
 ```
@@ -87,7 +87,7 @@ PLATFORM=ISV
 | Jeton | Il s'agit de la valeur par défaut si `AUTH_SESSION` n'a pas été fourni (ou si sa valeur n'est pas valide).  Pour qu'un jeton soit renvoyé, il faut que le médiateur FIDO2 injecte `access_token` dans l'élément `responseData` de la charge utile JSON. |
 | COOKIE | Renvoie la réponse du point d'accès FIDO `assertion/result` au client appelant. |
 
-> Voir [IBM Security Verify Access FIDO Mediation](https://www.ibm.com/docs/en/sva/10.0.0?topic=support-fido2-mediation) pour plus d'informations.
+> Voir [IBM Verify Access FIDO Mediation](https://www.ibm.com/docs/en/sva/10.0.0?topic=support-fido2-mediation) pour plus d'informations.
 
 <br/>
 
@@ -155,7 +155,7 @@ Pour plus d'informations, voir les [liens vers les ressources numériques de Goo
 
 #### `FIDO2_RELYING_PARTY_ID`
 
-Il s'agit de l'identifiant unique (UUID) créé lors de la création du service FIDO2 dans IBM Security Verify.  Par exemple :
+Il s'agit de l'identifiant unique (UUID) créé lors de la création du service FIDO2 dans IBM Verify.  Par exemple :
 ```
 FIDO2_RELYING_PARTY_ID=634cd513-dc6a-5e28-06fg-40c3dc81a79e
 ```
