@@ -1,12 +1,12 @@
 //
-// Copyright contributors to the IBM Security Verify WebAuthn Relying Party Server for Swift
+// Copyright contributors to the IBM Verify WebAuthn Relying Party Server for Swift
 //
 
 import Vapor
 
-/// The `ISVAUserService` for issuing and validating one-time passwords and creating a new user on IBM Security Verify Access.
+/// The `ISVAUserService` for issuing and validating one-time passwords and creating a new user on IBM Verify Access.
 ///
-/// - Remark: IBM Security Verify Access has a number of confguration options to support one-time password generation, validation and user account creation.  The methods are placeholders to suit the ISVA environment.
+/// - Remark: IBM Verify Access has a number of confguration options to support one-time password generation, validation and user account creation.  The methods are placeholders to suit the ISVA environment.
 class ISVAUserService: UserService {
     /// Core type representing a Vapor application.
     let webApp: Application
@@ -49,7 +49,7 @@ class ISVAUserService: UserService {
         throw Abort(HTTPResponseStatus(statusCode: 400), reason: "Method not implemented.")
     }
     
-    /// Create a new user in IBM Security Verify Access.
+    /// Create a new user in IBM Verify Access.
     /// - Parameters:
     ///   - token: The ``Token`` for authorizing requests to back-end services.
     ///   - email: The user's email address.

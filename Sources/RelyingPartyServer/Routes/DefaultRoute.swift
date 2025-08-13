@@ -1,19 +1,19 @@
 //
-// Copyright contributors to the IBM Security Verify WebAuthn Relying Party Server for Swift
+// Copyright contributors to the IBM Verify WebAuthn Relying Party Server for Swift
 //
 
 import Vapor
 
 ///  A platform supported by the relying party service.
 enum Platform: String, Equatable {
-    /// IBM Security Verify
+    /// IBM Verify
     case isv
     
-    /// IBM Security Verify Access
+    /// IBM Verify Access
     case isva
 }
 
-///  The IBM Security Verify Access authenticated session type.
+///  The IBM Verify Access authenticated session type.
 enum ISVAAuthSession: String, Equatable {
     /// Cookies representing an authenticated session
     case cookies
@@ -106,7 +106,7 @@ struct DefaultRoute: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         // Returns a simply string to indicate the relying party is running.
         webApp.routes.get { _ in
-            return "Welcome to IBM Security Verify Relying Party Server for Swift"
+            return "Welcome to IBM Verify Relying Party Server for Swift"
         }
         
         let route = routes.grouped("v1")

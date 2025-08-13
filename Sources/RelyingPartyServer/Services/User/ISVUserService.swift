@@ -1,10 +1,10 @@
 //
-// Copyright contributors to the IBM Security Verify WebAuthn Relying Party Server for Swift
+// Copyright contributors to the IBM Verify WebAuthn Relying Party Server for Swift
 //
 
 import Vapor
 
-/// The `ISVUserService` for issuing and validating one-time passwords and creating a new user on IBM Security Verify.
+/// The `ISVUserService` for issuing and validating one-time passwords and creating a new user on IBM Verify.
 class ISVUserService: UserService {
     /// Core type representing a Vapor application.
     let webApp: Application
@@ -94,7 +94,7 @@ class ISVUserService: UserService {
         return try await createUser(token: token, email: user.email, name: user.name)
     }
     
-    /// Create a new user in IBM Security Verify.
+    /// Create a new user in IBM Verify.
     /// - Parameters:
     ///   - token: The ``Token`` for authorizing requests to back-end services.
     ///   - email: The user's email address.

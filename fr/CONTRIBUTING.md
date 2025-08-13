@@ -7,7 +7,7 @@ Ce SDK suit un style de codage basé sur les [API Design Guidelines](https://swi
 
 ## Enjeux et questions
 
-Si vous rencontrez un problème, si vous avez une question ou si vous souhaitez suggérer une amélioration pour IBM Security Verify WebAuthn Relying Party Server for Swift, nous vous invitons à soumettre une [demande.](https://github.com/ibm-security-verify/webauthn-relying-party-server-swift/issues)
+Si vous rencontrez un problème, si vous avez une question ou si vous souhaitez suggérer une amélioration pour IBM Verify WebAuthn Relying Party Server for Swift, nous vous invitons à soumettre une [demande.](https://github.com/ibm-verify/webauthn-relying-party-server-swift/issues)
 Avant cela, veuillez rechercher des problèmes similaires. Il est possible que quelqu'un ait déjà rencontré ce problème.
 
 ## Demandes d'extraction

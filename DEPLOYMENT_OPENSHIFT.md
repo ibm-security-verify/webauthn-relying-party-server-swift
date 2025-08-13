@@ -21,7 +21,7 @@ The relying-party-server requires several environment variables to launch. These
 
 #### `PLATFORM`
 
-The platform flag indicates if the relying party server is IBM Security Verify (ISV) or IBM Security Verify Access (ISVA). For example:
+The platform flag indicates if the relying party server is IBM Verify (ISV) or IBM Verify Access (ISVA). For example:
 ```
 PLATFORM=ISV
 ```
@@ -54,7 +54,7 @@ See [Supporting associated domains](https://developer.apple.com/documentation/xc
 
 #### `FIDO2_RELYING_PARTY_ID`
 
-This is the unique identifier (UUID) that is created when the FIDO2 service is created in IBM Security Verify.  For example:
+This is the unique identifier (UUID) that is created when the FIDO2 service is created in IBM Verify.  For example:
 ```
 FIDO2_RELYING_PARTY_ID=634cd513-dc6a-5e28-06fg-40c3dc81a79e
 ```
@@ -112,7 +112,7 @@ In the case of using the public docker image, follow the guide below.
 - Clone the relying party repository.  Run this command in a Terminal window:
 
     ```
-    git clone https://github.com/ibm-security-verify/webauthn-relying-party-server.git
+    git clone https://github.com/ibm-verify/webauthn-relying-party-server.git
     ```
     ```
     cd `openshift-deployment`
